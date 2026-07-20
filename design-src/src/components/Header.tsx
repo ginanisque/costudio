@@ -3,8 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getCurrentCollab } from '@/utils/collab';
 import { listMessages, getLastOpenTs } from '@/utils/storage';
-import { Calculator, Home, Mail, SunMedium, Moon } from 'lucide-react';
+import { Calculator, Home, LogOut, Mail, SunMedium, Moon } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
+import { getUser, logout } from '@/utils/auth';
 
 type Props = {
   onOpenSettings?: () => void;
@@ -13,6 +14,7 @@ type Props = {
 const Header: React.FC<Props> = ({ onOpenSettings }) => {
   const [unread, setUnread] = React.useState(0);
   const { theme, setTheme } = useTheme();
+  const account = getUser();
   React.useEffect(() => {
     const id = setInterval(() => {
       try {
@@ -52,6 +54,7 @@ const Header: React.FC<Props> = ({ onOpenSettings }) => {
           </div>
           
           <div className="flex items-center space-x-2">
+            <span className="hidden lg:inline text-sm font-medium text-slate-700">{account?.businessName}</span>
             <Button asChild variant="ghost" size="sm" title="Costudio home">
               <a href="../"><Home className="h-4 w-4" /><span className="hidden md:inline">Home</span></a>
             </Button>
@@ -73,6 +76,9 @@ const Header: React.FC<Props> = ({ onOpenSettings }) => {
             </Button>
             <Button variant="outline" size="sm">
               Creator Mode
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => void logout()} title="Sign out">
+              <LogOut className="h-4 w-4" /><span className="hidden md:inline">Sign out</span>
             </Button>
           </div>
         </div>

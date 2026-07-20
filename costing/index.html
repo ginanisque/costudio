@@ -577,7 +577,7 @@
       </div>
       <div class="auth-error" id="loginErr"></div>
       <button type="button" class="btn btn-primary btn-full auth-submit" data-label="Sign in →" onclick="doLogin()">Sign in →</button>
-      <div class="switch-link"><a onclick="forgotPassword()">Forgot password?</a> &nbsp;·&nbsp; <a onclick="switchStep('stepEmail')">← Use a different email</a></div>
+      <div class="switch-link"><a onclick="forgotPassword()">Forgot password?</a> &nbsp;·&nbsp; <a onclick="switchStep('stepRegister')">Create business account</a> &nbsp;·&nbsp; <a onclick="switchStep('stepEmail')">← Use a different email</a></div>
     </div>
 
     <!-- Step 2b: New user registration -->
@@ -1405,6 +1405,8 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<script src="supabase-auth.js"></script>
 <script>
 // ═══════════════════════════════════════════════
 // API LAYER  (all calls go to the PHP backend)
@@ -1645,18 +1647,9 @@ async function authContinue() {
   const email = document.getElementById('authEmail').value.trim().toLowerCase();
   if (!email || !email.includes('@')) { alert('Please enter a valid email address.'); return; }
   clearError('stepWelcome'); clearError('stepRegister');
-  setBusy('stepEmail', true);
-  const r = await API.request('api/auth.php?action=check_email', 'POST', { email });
-  setBusy('stepEmail', false);
-  if (!r) return;
-  if (!r.data?.valid) { alert('Please enter a valid email address.'); return; }
-  if (r.data.exists) {
-    document.getElementById('wbName').textContent = r.data.name || email;
-    document.getElementById('wbMeta').textContent = 'Enter your password to continue.';
-    switchStep('stepWelcome');
-  } else {
-    switchStep('stepRegister');
-  }
+  document.getElementById('wbName').textContent = email;
+  document.getElementById('wbMeta').textContent = 'Enter your password, or create a business account.';
+  switchStep('stepWelcome');
 }
 
 async function doLogin() {
@@ -1664,7 +1657,13 @@ async function doLogin() {
   const pass  = document.getElementById('authPassword').value;
   if (!pass) { showError('stepWelcome', 'Please enter your password.'); return; }
   clearError('stepWelcome'); setBusy('stepWelcome', true);
-  const r = await API.request('api/auth.php', 'POST', { action: 'login', email, password: pass });
+  const { data: authData, error: authError } = await window.costudioAuth.auth.signInWithPassword({ email, password: pass });
+  if (authError || !authData.session) {
+    setBusy('stepWelcome', false);
+    showError('stepWelcome', authError?.message || 'Login failed. Please try again.');
+    return;
+  }
+  const r = await API.request('api/auth.php', 'POST', { action: 'supabase_session', accessToken: authData.session.access_token });
   setBusy('stepWelcome', false);
   if (!r?.ok) { showError('stepWelcome', r?.data?.error || 'Login failed. Please try again.'); return; }
   currentUser = r.data.user;
@@ -1692,7 +1691,25 @@ async function doRegister() {
   }
   const unit = document.getElementById('regUnit').value;
   clearError('stepRegister'); setBusy('stepRegister', true);
-  const r = await API.request('api/auth.php', 'POST', { action: 'register', name, email, password: pass, cur: sym, curCode: code, unit });
+  const { data: authData, error: authError } = await window.costudioAuth.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { business_name: name, display_name: name } },
+  });
+  if (authError) {
+    setBusy('stepRegister', false);
+    showError('stepRegister', authError.message);
+    return;
+  }
+  if (!authData.session) {
+    setBusy('stepRegister', false);
+    showError('stepRegister', 'Check your email to confirm the account, then sign in.');
+    return;
+  }
+  const r = await API.request('api/auth.php', 'POST', {
+    action: 'supabase_session', accessToken: authData.session.access_token,
+    name, cur: sym, curCode: code, unit,
+  });
   setBusy('stepRegister', false);
   if (!r?.ok) { showError('stepRegister', r?.data?.error || 'Registration failed. Please try again.'); return; }
   currentUser = r.data.user;
@@ -1767,7 +1784,9 @@ async function forgotPassword() {
     return;
   }
   clearError('stepWelcome'); setBusy('stepWelcome', true);
-  await API.request('api/auth.php', 'POST', { action: 'forgot_password', email });
+  await window.costudioAuth.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname + '?reset=supabase',
+  });
   setBusy('stepWelcome', false);
   switchStep('stepForgotSent');
 }
@@ -1778,28 +1797,18 @@ async function doResetPassword() {
   if (pass.length < 10) { showResetErr('Password must be at least 10 characters.'); return; }
   if (pass !== pass2)  { showResetErr('Passwords do not match.'); return; }
 
-  const token = new URLSearchParams(window.location.search).get('token') || '';
-  if (!token) { showResetErr('Reset token missing. Please use the link from your email.'); return; }
-
   clearResetErr(); setBusy('stepResetPw', true);
-  const r = await API.request('api/auth.php', 'POST', { action: 'reset_password', token, password: pass });
+  const { error } = await window.costudioAuth.auth.updateUser({ password: pass });
   setBusy('stepResetPw', false);
-  if (!r?.ok) { showResetErr(r?.data?.error || 'Could not reset password. The link may have expired.'); return; }
+  if (error) { showResetErr(error.message || 'Could not reset password. The link may have expired.'); return; }
 
   // Remove token from URL without a page reload, then go to sign-in
   history.replaceState(null, '', window.location.pathname);
   document.getElementById('resetNewPass').value  = '';
   document.getElementById('resetNewPass2').value = '';
-  const resetEmail = r.data?.email || '';
-  const resetName  = r.data?.name  || '';
-  if (resetEmail) {
-    document.getElementById('authEmail').value    = resetEmail;
-    document.getElementById('wbName').textContent = resetName || resetEmail;
-    document.getElementById('wbMeta').textContent = 'Password updated! Sign in with your new password.';
-    switchStep('stepWelcome');
-  } else {
-    switchStep('stepEmail');
-  }
+  await window.costudioAuth.auth.signOut();
+  switchStep('stepEmail');
+  showToast('Password updated. Sign in with your new password.');
 }
 
 function showResetErr(msg) {
@@ -1814,6 +1823,7 @@ function clearResetErr() {
 async function doLogout() {
   if (!confirm('Sign out? Your data is saved and will be waiting when you sign back in.')) return;
   await API.request('api/auth.php', 'POST', { action: 'logout' });
+  await window.costudioAuth.auth.signOut();
   currentUser = null;
   csrfToken   = '';
   inventory   = [];
@@ -1992,9 +2002,9 @@ async function bootApp() {
 // INIT
 // ═══════════════════════════════════════════════
 window.onload = async () => {
-  // If a password-reset token is in the URL, skip session check and show reset step
-  const _resetToken = new URLSearchParams(window.location.search).get('token');
-  if (_resetToken) {
+  // Supabase redirects password recovery back with a recoverable browser session.
+  const _isPasswordReset = new URLSearchParams(window.location.search).get('reset') === 'supabase';
+  if (_isPasswordReset) {
     const loader = document.getElementById('appLoader');
     if (loader) loader.style.display = 'none';
     showAuthModal();
@@ -2009,10 +2019,25 @@ window.onload = async () => {
         hideAuthModal();
         await bootApp();
       } else {
-        const loader = document.getElementById('appLoader');
-        if (loader) loader.style.display = 'none';
-        showAuthModal();
-        switchStep('stepEmail');
+        // A session created in Design Studio is shared on the same origin. Bridge
+        // it into the existing PHP session so Costing and Measurements retain
+        // their mature MySQL workflows during the Supabase migration.
+        const { data: sessionData } = await window.costudioAuth.auth.getSession();
+        const accessToken = sessionData.session?.access_token || '';
+        const bridged = accessToken
+          ? await API.request('api/auth.php', 'POST', { action: 'supabase_session', accessToken })
+          : null;
+        if (bridged?.ok) {
+          currentUser = bridged.data.user;
+          csrfToken = bridged.data.csrfToken || '';
+          hideAuthModal();
+          await bootApp();
+        } else {
+          const loader = document.getElementById('appLoader');
+          if (loader) loader.style.display = 'none';
+          showAuthModal();
+          switchStep('stepEmail');
+        }
       }
     } catch (e) {
       console.error('Startup error:', e);

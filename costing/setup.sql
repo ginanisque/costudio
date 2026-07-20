@@ -14,6 +14,7 @@
 -- ── USERS ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  supabase_uid  CHAR(36)      NULL UNIQUE,
   name          VARCHAR(150)  NOT NULL,
   email         VARCHAR(255)  NOT NULL UNIQUE,
   password_hash VARCHAR(255)  NOT NULL,

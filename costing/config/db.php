@@ -11,6 +11,8 @@ define('DB_NAME', getenv('DB_NAME') ?: (defined('_DB_NAME') ? _DB_NAME : ''));
 define('DB_USER', getenv('DB_USER') ?: (defined('_DB_USER') ? _DB_USER : ''));
 define('DB_PASS', getenv('DB_PASS') ?: (defined('_DB_PASS') ? _DB_PASS : ''));
 define('DB_CHAR', 'utf8mb4');
+define('SUPABASE_URL', getenv('SUPABASE_URL') ?: 'https://krbedficypujbukslgif.supabase.co');
+define('SUPABASE_ANON_KEY', getenv('SUPABASE_ANON_KEY') ?: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyYmVkZmljeXB1amJ1a3NsZ2lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NjM2MzgsImV4cCI6MjEwMDEzOTYzOH0.BSHiK0GMqFMk_Go0vmWuQ4FuIf4p0MPlUYAK5cINGwU');
 
 function db(): PDO
 {

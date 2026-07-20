@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase';
+
 export type StoredDesigner = {
   id: string;
   profile: Record<string, unknown>;
@@ -145,14 +147,8 @@ function writeNumber(key: string, n: number) {
 
 // ── Auth token ────────────────────────────────────────────────
 
-let _token: string | null = localStorage.getItem('fashionAI.token');
-
-export function getToken(): string | null { return _token; }
-export function setToken(t: string | null) {
-  _token = t;
-  if (t) localStorage.setItem('fashionAI.token', t);
-  else localStorage.removeItem('fashionAI.token');
-}
+let _businessId: string | null = null;
+export function setBusinessId(id: string | null) { _businessId = id; }
 
 // ── In-memory cache (populated after login) ───────────────────
 
@@ -171,51 +167,50 @@ const cache = {
 
 // ── API helpers ───────────────────────────────────────────────
 
-const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
-
-async function apiFetch(path: string, opts: RequestInit = {}): Promise<unknown> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (_token) headers['Authorization'] = `Bearer ${_token}`;
-  try {
-    const r = await fetch(API_BASE + path, {
-      ...opts,
-      headers: { ...headers, ...(opts.headers as Record<string, string> || {}) },
-    });
-    if (r.status === 401) { setToken(null); cache.ready = false; }
-    return r.ok ? r.json() : null;
-  } catch { return null; }
-}
+const ENTITY_TYPES: Record<string, string> = {
+  designers: 'designer', collections: 'collection', palettes: 'palette', fabrics: 'fabric',
+  pieces: 'piece', notes: 'note', promptsets: 'prompt_set', moodboards: 'moodboard',
+};
 
 function serverSave(type: string, entity: unknown) {
-  if (!_token) return;
+  if (!supabase || !_businessId) return;
   const clientId = (entity as { id?: string }).id;
   if (!clientId) return;
-  apiFetch(`/api/data/${type}`, {
-    method: 'POST',
-    body: JSON.stringify({ client_id: clientId, data: entity }),
-  });
+  void supabase.from('design_records').upsert({
+    business_id: _businessId,
+    entity_type: ENTITY_TYPES[type],
+    client_id: clientId,
+    data: entity,
+  }, { onConflict: 'business_id,entity_type,client_id' });
 }
 
 function serverDelete(type: string, clientId: string) {
-  if (!_token) return;
-  apiFetch(`/api/data/${type}/${encodeURIComponent(clientId)}`, { method: 'DELETE' });
+  if (!supabase || !_businessId) return;
+  void supabase.from('design_records').delete()
+    .eq('business_id', _businessId)
+    .eq('entity_type', ENTITY_TYPES[type])
+    .eq('client_id', clientId);
 }
 
 // ── Server init / cache clear ─────────────────────────────────
 
 export async function initFromServer(): Promise<void> {
-  const types = ['designers', 'collections', 'palettes', 'fabrics', 'pieces', 'notes', 'promptsets', 'moodboards'];
-  const results = await Promise.all(types.map(t => apiFetch(`/api/data/${t}`)));
-  const [designers, collections, palettes, fabrics, pieces, notes, promptsets, moodboards] = results as Array<{ items: Array<{ data: unknown }> } | null>;
-
-  cache.designers   = (designers?.items   || []).map(r => r.data as StoredDesigner);
-  cache.collections = (collections?.items || []).map(r => r.data as StoredCollection);
-  cache.palettes    = (palettes?.items    || []).map(r => r.data as StoredPalette);
-  cache.fabrics     = (fabrics?.items     || []).map(r => r.data as StoredFabric);
-  cache.pieces      = (pieces?.items      || []).map(r => r.data as StoredPiece);
-  cache.notes       = (notes?.items       || []).map(r => r.data as StoredNote);
-  cache.promptSets  = (promptsets?.items  || []).map(r => r.data as StoredPromptSet);
-  cache.moodboards  = (moodboards?.items  || []).map(r => r.data as StoredMoodboard);
+  if (!supabase || !_businessId) return;
+  const { data, error } = await supabase.from('design_records')
+    .select('entity_type,data')
+    .eq('business_id', _businessId)
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  const records = data || [];
+  const byType = (type: string) => records.filter(r => r.entity_type === type).map(r => r.data);
+  cache.designers   = byType('designer') as unknown as StoredDesigner[];
+  cache.collections = byType('collection') as unknown as StoredCollection[];
+  cache.palettes    = byType('palette') as unknown as StoredPalette[];
+  cache.fabrics     = byType('fabric') as unknown as StoredFabric[];
+  cache.pieces      = byType('piece') as unknown as StoredPiece[];
+  cache.notes       = byType('note') as unknown as StoredNote[];
+  cache.promptSets  = byType('prompt_set') as unknown as StoredPromptSet[];
+  cache.moodboards  = byType('moodboard') as unknown as StoredMoodboard[];
   cache.pieceSeq    = cache.pieces.reduce((m, p) => Math.max(m, p.seq || 0), 0);
   cache.ready       = true;
 }
@@ -225,7 +220,6 @@ export function clearCache() {
   cache.fabrics = []; cache.pieces = []; cache.notes = [];
   cache.promptSets = []; cache.moodboards = [];
   cache.pieceSeq = 0; cache.ready = false;
-  setToken(null);
 }
 
 // ── Designers ─────────────────────────────────────────────────

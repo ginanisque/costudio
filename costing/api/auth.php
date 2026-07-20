@@ -60,11 +60,92 @@ function record_attempt(PDO $pdo, string $identifier): void
     $pdo->prepare('INSERT INTO login_attempts (identifier) VALUES (?)')->execute([$identifier]);
 }
 
+function supabase_account(string $accessToken): array
+{
+    if ($accessToken === '') respond(['error' => 'Missing Supabase session.'], 401);
+    $url = rtrim(SUPABASE_URL, '/') . '/auth/v1/user';
+    $headers = [
+        'apikey: ' . SUPABASE_ANON_KEY,
+        'Authorization: Bearer ' . $accessToken,
+        'Accept: application/json',
+    ];
+    $status = 0;
+    $raw = false;
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_TIMEOUT => 10,
+        ]);
+        $raw = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+    } else {
+        $context = stream_context_create(['http' => [
+            'method' => 'GET', 'header' => implode("\r\n", $headers),
+            'timeout' => 10, 'ignore_errors' => true,
+        ]]);
+        $raw = @file_get_contents($url, false, $context);
+        foreach ($http_response_header ?? [] as $line) {
+            if (preg_match('/^HTTP\/\S+\s+(\d{3})/', $line, $match)) $status = (int) $match[1];
+        }
+    }
+    $account = is_string($raw) ? json_decode($raw, true) : null;
+    if ($status !== 200 || !is_array($account) || empty($account['id']) || empty($account['email'])) {
+        respond(['error' => 'Invalid or expired Supabase session.'], 401);
+    }
+    return $account;
+}
+
+function establish_supabase_session(array $account, array $preferences): array
+{
+    $uid = strtolower(trim((string) $account['id']));
+    $email = strtolower(trim((string) $account['email']));
+    if (!preg_match('/^[0-9a-f-]{36}$/', $uid) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        respond(['error' => 'Invalid Supabase account.'], 401);
+    }
+    $meta = is_array($account['user_metadata'] ?? null) ? $account['user_metadata'] : [];
+    $name = trim((string) ($meta['business_name'] ?? $meta['display_name'] ?? $preferences['name'] ?? ''));
+    if ($name === '') $name = explode('@', $email)[0];
+    $name = substr($name, 0, 150);
+    $cur = substr((string) ($preferences['cur'] ?? '$'), 0, 10);
+    $code = substr((string) ($preferences['curCode'] ?? 'USD'), 0, 15);
+    $unit = in_array($preferences['unit'] ?? 'm', ['m', 'yd'], true) ? $preferences['unit'] : 'm';
+
+    $pdo = db();
+    $stmt = $pdo->prepare('SELECT id, name, email, cur, cur_code, unit, last_login FROM users WHERE supabase_uid=? OR email=? LIMIT 1');
+    $stmt->execute([$uid, $email]);
+    $user = $stmt->fetch();
+    if ($user) {
+        $pdo->prepare('UPDATE users SET supabase_uid=?, name=?, last_login=NOW() WHERE id=?')
+            ->execute([$uid, $name, $user['id']]);
+    } else {
+        $disabledPassword = password_hash(bin2hex(random_bytes(32)), PASSWORD_DEFAULT);
+        $pdo->prepare('INSERT INTO users (supabase_uid,name,email,password_hash,cur,cur_code,unit,last_login) VALUES (?,?,?,?,?,?,?,NOW())')
+            ->execute([$uid, $name, $email, $disabledPassword, $cur, $code, $unit]);
+        $userId = (int) $pdo->lastInsertId();
+        $pdo->prepare('INSERT INTO user_state (user_id) VALUES (?)')->execute([$userId]);
+    }
+    $stmt = $pdo->prepare('SELECT id, name, email, cur, cur_code, unit, last_login FROM users WHERE supabase_uid=?');
+    $stmt->execute([$uid]);
+    $user = $stmt->fetch();
+    session_regenerate_id(true);
+    $_SESSION['user_id'] = (int) $user['id'];
+    return $user;
+}
+
 // ── Route ────────────────────────────────────────────────────
 $body   = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $body['action'] ?? ($_GET['action'] ?? '');
 
 switch ($action) {
+
+    case 'supabase_session': {
+        $account = supabase_account(trim((string) ($body['accessToken'] ?? '')));
+        $user = establish_supabase_session($account, $body);
+        respond(['ok' => true, 'csrfToken' => csrf_token(), 'user' => user_row_to_array($user)]);
+    }
 
     // ── CHECK EMAIL (step 1 of login flow) ──────────────────
     case 'check_email': {

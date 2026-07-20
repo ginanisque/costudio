@@ -6,10 +6,9 @@ import { login, register } from '@/utils/auth';
 
 interface Props {
   onSuccess: () => void;
-  onSkip: () => void;
 }
 
-export function LoginModal({ onSuccess, onSkip }: Props) {
+export function LoginModal({ onSuccess }: Props) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,7 +38,7 @@ export function LoginModal({ onSuccess, onSkip }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-background border rounded-xl shadow-2xl p-8 w-full max-w-sm mx-4">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">Fashion AI</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Costudio</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {mode === 'login' ? 'Sign in to sync your work across devices.' : 'Create an account to save your work.'}
           </p>
@@ -48,14 +47,14 @@ export function LoginModal({ onSuccess, onSkip }: Props) {
         <form onSubmit={submit} className="space-y-4">
           {mode === 'register' && (
             <div className="space-y-1.5">
-              <Label htmlFor="modal-name">Name</Label>
+              <Label htmlFor="modal-name">Business name</Label>
               <Input
                 id="modal-name"
                 value={name}
                 onChange={e => setName(e.target.value)}
                 required
-                placeholder="Your name"
-                autoComplete="name"
+                placeholder="e.g. Ginani Apparel"
+                autoComplete="organization"
               />
             </div>
           )}
@@ -104,18 +103,9 @@ export function LoginModal({ onSuccess, onSkip }: Props) {
           </button>
         </p>
 
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">or</span>
-          </div>
-        </div>
-
-        <Button type="button" variant="ghost" className="w-full text-muted-foreground" onClick={onSkip}>
-          Continue without account (local only)
-        </Button>
+        <p className="mt-5 text-center text-xs text-muted-foreground">
+          One business account for Design, Costing, and Measurements.
+        </p>
       </div>
     </div>
   );

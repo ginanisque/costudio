@@ -11,6 +11,19 @@ npx supabase login
 npx supabase link --project-ref YOUR_PROJECT_REF
 ```
 
+Open **Supabase Dashboard → SQL Editor**, paste the contents of
+`supabase/migrations/202607200001_shared_business_platform.sql`, and click **Run**.
+This is the PostgreSQL schema for shared business accounts. Do not paste
+`costing/setup.sql` into Supabase; that file is only for MySQL/MariaDB.
+
+If Costing's MySQL tables already existed before shared authentication was
+added, run `costing/migrations/001_add_supabase_uid.sql` once in phpMyAdmin.
+Fresh MySQL installations should use the updated `costing/setup.sql` instead.
+
+Design, Costing, and Measurements authenticate through the same Supabase
+account. Host `/design/` and `/costing/` on the same domain to also get automatic
+single sign-on between the two browser apps.
+
 ## 2. Add server-only secrets
 
 The OpenAI API key must only be stored as a Supabase secret. It must never use a `VITE_` prefix or be placed in browser code.
