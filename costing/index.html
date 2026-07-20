@@ -1151,6 +1151,7 @@
   <section class="tab-panel" id="tab-clients">
     <div class="crm-toolbar">
       <input type="text" id="clientSearch" placeholder="Search clients…" oninput="renderClients()">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="loadDemoAdmin()">Load Demo Admin</button>
       <button type="button" class="btn btn-secondary btn-sm" onclick="openClientModal()">+ New Client</button>
       <button type="button" class="btn btn-secondary btn-sm" onclick="openOrderModal()">+ Bespoke Order</button>
       <button type="button" class="btn btn-primary btn-sm" onclick="openStockOrder()">+ Make for Stock</button>
@@ -1160,6 +1161,7 @@
       <button type="button" class="crm-view-tab" id="crmTabMeasurements" onclick="setCrmView('measurements')">Measurements</button>
       <button type="button" class="crm-view-tab" id="crmTabOrders" onclick="setCrmView('orders')">All Orders</button>
     </div>
+    <div class="stats-row" id="crmSummaryBar" style="margin-bottom:16px"></div>
     <div id="crmClientsView"><div id="clientList"></div></div>
     <div id="crmMeasurementsView" style="display:none">
       <div class="measurement-hero">
@@ -1167,7 +1169,7 @@
         <div class="measurement-actions">
           <button type="button" class="btn btn-primary btn-sm" onclick="openMeasurementModal()">+ Take measurements</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('measurementImport').click()">Receive file</button>
-          <input type="file" id="measurementImport" accept=".mmt,.mtb,.txt,application/json,text/plain" hidden onchange="importMeasurementFile(this.files[0])">
+          <input type="file" id="measurementImport" accept=".mmt,.mtb,.json,.txt,application/json,text/plain" hidden onchange="importMeasurementFile(this.files[0])">
         </div>
       </div>
       <div class="measurement-layout">
@@ -1267,6 +1269,27 @@
     <h3 id="measurementHistoryTitle">Measurement history</h3>
     <div id="measurementHistoryList"></div>
     <div class="modal-actions"><button type="button" class="btn btn-secondary" onclick="closeMeasurementHistory()">Close</button></div>
+  </div>
+</div>
+
+<div class="crm-modal-overlay" id="sendMeasurementOverlay" style="display:none" onclick="if(event.target===this)closeSendMeasurementModal()">
+  <div class="crm-modal" style="max-width:520px">
+    <h3>Send blank measurement table</h3>
+    <input type="hidden" id="sendTemplateId">
+    <div class="field"><label>Client *</label><select id="sendMeasurementClient"></select></div>
+    <div class="field"><label>File format</label>
+      <select id="sendMeasurementFormat">
+        <option value="mtb">Costudio table (.mtb)</option>
+        <option value="mmt">PatternMaker table (.mmt)</option>
+        <option value="txt">Readable text (.txt)</option>
+      </select>
+    </div>
+    <div class="alert alert-info">Share opens the system share sheet when supported. Otherwise Costudio downloads the file and opens an addressed email ready for attachment.</div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeSendMeasurementModal()">Cancel</button>
+      <button type="button" class="btn btn-secondary" onclick="sendBlankMeasurement(false)">Download</button>
+      <button type="button" class="btn btn-primary" onclick="sendBlankMeasurement(true)">Share / Email</button>
+    </div>
   </div>
 </div>
 
@@ -1988,10 +2011,17 @@ async function bootApp() {
     renderProducts();
     updateCapacity();
     updateTabStates();
-    goTab('dashboard');
+    const route = new URLSearchParams(window.location.search);
+    const crmWorkspace = route.get('workspace') === 'crm';
+    goTab(crmWorkspace ? 'clients' : 'dashboard');
     renderDashboard();
     renderInventory();
-    importDesignHandoff();
+    const importedDesign = importDesignHandoff();
+    if (crmWorkspace && !importedDesign) {
+      await loadCRM();
+      const crmView = ['clients','measurements','orders'].includes(route.get('view')) ? route.get('view') : 'clients';
+      setCrmView(crmView);
+    }
     loadFeedback(); // fire-and-forget — populates feedback card in background
   } finally {
     if (loader) loader.style.display = 'none';
@@ -3512,10 +3542,26 @@ async function loadCRM() {
   renderClients();
   renderAllOrders();
   renderMeasurementStudio();
+  renderCrmSummary();
   renderDashboard();
   if (document.getElementById('tab-products')?.classList.contains('active')) {
     renderProducts();
   }
+}
+
+function renderCrmSummary() {
+  const el=document.getElementById('crmSummaryBar');if(!el)return;
+  const measured=CRM.customers.filter(c=>c.measurements?.record||c.measurements?.templateId).length;
+  const active=CRM.orders.filter(o=>!['collected','sold','delivered','cancelled'].includes(o.status)).length;
+  const revenue=CRM.orders.filter(o=>['collected','sold','delivered'].includes(o.status)).reduce((sum,o)=>sum+(Number(o.priceAgreed)||0)*(Number(o.quantity)||1),0);
+  el.innerHTML=`<div class="stat"><div class="stat-lbl">Clients</div><div class="stat-val">${CRM.customers.length}</div></div><div class="stat"><div class="stat-lbl">Measurement records</div><div class="stat-val">${measured}</div></div><div class="stat warn"><div class="stat-lbl">Active orders</div><div class="stat-val">${active}</div></div><div class="stat ok"><div class="stat-lbl">Completed revenue</div><div class="stat-val">${fmt(revenue)}</div></div>`;
+}
+
+async function loadDemoAdmin() {
+  if(!confirm('Load the competition demo clients, Ginani measurements, and orders into this business workspace? Existing records will not be removed.'))return;
+  const r=await API.request('api/demo.php','POST',{});
+  if(!r?.ok){alert(r?.data?.error||'Could not load demo CRM data.');return;}
+  await loadCRM();setCrmView('clients');showToast('Demo Admin workspace is ready');
 }
 
 function setCrmView(v) {
@@ -3541,7 +3587,7 @@ function renderMeasurementStudio() {
     return `<div class="measurement-record"><div class="measurement-record-head"><div><div class="measurement-record-name">${esc(c.name)}</div><div class="measurement-record-meta"><span class="template-chip">${esc(r.templateName || 'Measurement table')}</span>${count} values · ${esc(r.unit || 'in')} · ${fmtDate(r.takenAt)}</div></div><div class="measurement-record-actions"><button class="btn btn-secondary btn-sm" onclick="openMeasurementModal(${c.id})">Edit</button>${historyCount?`<button class="btn btn-secondary btn-sm" onclick="openMeasurementHistory(${c.id})">History (${historyCount})</button>`:''}<button class="btn btn-secondary btn-sm" onclick="exportClientMeasurement(${c.id},'txt')">TXT</button><button class="btn btn-secondary btn-sm" onclick="exportClientMeasurement(${c.id},'pdf')">PDF</button><button class="btn btn-secondary btn-sm" onclick="exportClientMeasurement(${c.id},'mtb')">MTB</button><button class="btn btn-primary btn-sm" onclick="shareClientMeasurement(${c.id})">Send</button></div></div>${r.fitAnalysis ? `<div class="fit-note" style="margin-top:10px"><strong>Fit analysis:</strong> ${esc(r.fitAnalysis)}</div>` : ''}</div>`;
   }).join('') : `<div class="measurement-empty">No client measurement tables yet.<br><button class="btn btn-primary btn-sm" style="margin-top:10px" onclick="openMeasurementModal()">Take first measurements</button></div>`;
 
-  templates.innerHTML = allMeasurementTemplates().map(t => `<div class="template-card"><div class="template-card-title">${esc(t.name)}</div><div class="template-card-meta">${esc(t.category || 'Custom standard')} · ${t.fields.length} field${t.fields.length===1?'':'s'} · ${esc(t.unit)}</div><div class="template-card-actions"><button class="btn btn-secondary btn-sm" onclick="downloadBlankTemplate('${t.id}','mtb')">Send blank</button><button class="btn btn-secondary btn-sm" onclick="downloadBlankTemplate('${t.id}','mmt')">.mmt</button>${t.builtin ? '' : `<button class="btn btn-secondary btn-sm" onclick="openTemplateModal(${t.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteMeasurementTemplate(${t.id})">×</button>`}</div></div>`).join('');
+  templates.innerHTML = allMeasurementTemplates().map(t => `<div class="template-card"><div class="template-card-title">${esc(t.name)}</div><div class="template-card-meta">${esc(t.category || 'Custom standard')} · ${t.fields.length} field${t.fields.length===1?'':'s'} · ${esc(t.unit)}</div><div class="template-card-actions"><button class="btn btn-primary btn-sm" onclick="openSendMeasurementModal('${t.id}')">Send blank</button><button class="btn btn-secondary btn-sm" onclick="downloadBlankTemplate('${t.id}','mmt')">Download .mmt</button>${t.builtin ? '' : `<button class="btn btn-secondary btn-sm" onclick="openTemplateModal(${t.id})">Edit</button><button class="btn btn-danger btn-sm" onclick="deleteMeasurementTemplate(${t.id})">×</button>`}</div></div>`).join('');
 }
 
 function templateById(id) { return allMeasurementTemplates().find(t => String(t.id) === String(id)); }
@@ -3655,7 +3701,7 @@ async function deleteMeasurementTemplate(id) { if(!confirm('Delete this custom t
 
 function measurementPayload(c, blankTemplate=null) {
   const r = blankTemplate ? {templateId:blankTemplate.id,templateName:blankTemplate.name,templateCategory:blankTemplate.category,fields:blankTemplate.fields,values:{},unit:blankTemplate.unit} : (c.measurements?.record || c.measurements);
-  return { format:'costudio.measurement-table',version:1,client:blankTemplate?'':c.name,email:blankTemplate?'':c.email,template:{id:r.templateId,name:r.templateName,category:r.templateCategory,unit:r.unit,fields:r.fields||[]},measurements:r.values||{},fitAnalysis:r.fitAnalysis||'',notes:r.notes||'',takenAt:r.takenAt||'',takenBy:r.takenBy||'',source:r.source||'' };
+  return { format:'costudio.measurement-table',version:1,client:c?.name||'',email:c?.email||'',template:{id:r.templateId,name:r.templateName,category:r.templateCategory,unit:r.unit,fields:r.fields||[]},measurements:r.values||{},fitAnalysis:r.fitAnalysis||'',notes:r.notes||'',takenAt:r.takenAt||'',takenBy:r.takenBy||'',source:r.source||'' };
 }
 function safeFileName(s) { return String(s||'measurement-table').replace(/[^a-z0-9_-]+/gi,'-').replace(/^-|-$/g,''); }
 function downloadBlob(content,type,name) { const blob=content instanceof Blob?content:new Blob([content],{type});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);return blob; }
@@ -3678,6 +3724,35 @@ function exportClientMeasurement(id,format) {
   if(format==='pdf') return downloadBlob(simplePdfBlob(`${c.name} - ${p.template.name}`,payloadText(p).split('\n').slice(2)),'application/pdf',base+'.pdf');
 }
 function downloadBlankTemplate(id,format='mtb') { const t=templateById(id);if(!t)return;const p=measurementPayload(null,t);const base=safeFileName(t.name)+'-blank';downloadBlob(format==='mmt'?payloadMmt(p):JSON.stringify(p,null,2),format==='mmt'?'text/plain':'application/json',base+'.'+format);showToast('Blank table ready to send'); }
+function openSendMeasurementModal(templateId) {
+  const t=templateById(templateId);if(!t)return;
+  if(!CRM.customers.length){openClientModal();showToast('Add a client before sending a measurement table');return;}
+  document.getElementById('sendTemplateId').value=t.id;
+  document.getElementById('sendMeasurementClient').innerHTML=CRM.customers.map(c=>`<option value="${c.id}">${esc(c.name)}${c.email?` · ${esc(c.email)}`:''}</option>`).join('');
+  document.getElementById('sendMeasurementFormat').value='mtb';
+  document.getElementById('sendMeasurementOverlay').style.display='flex';
+}
+function closeSendMeasurementModal(){document.getElementById('sendMeasurementOverlay').style.display='none';}
+function blankMeasurementFile(client,template,format){
+  const p=measurementPayload(client,template);const base=safeFileName(`${client.name}-${template.name}-blank`);
+  if(format==='mmt')return {blob:new Blob([payloadMmt(p)],{type:'text/plain;charset=utf-8'}),name:base+'.mmt'};
+  if(format==='txt')return {blob:new Blob([payloadText(p)],{type:'text/plain;charset=utf-8'}),name:base+'.txt'};
+  return {blob:new Blob([JSON.stringify(p,null,2)],{type:'application/json'}),name:base+'.mtb'};
+}
+async function sendBlankMeasurement(share) {
+  const client=CRM.customers.find(c=>c.id===parseInt(document.getElementById('sendMeasurementClient').value));
+  const template=templateById(document.getElementById('sendTemplateId').value);
+  const format=document.getElementById('sendMeasurementFormat').value;
+  if(!client||!template)return;
+  const output=blankMeasurementFile(client,template,format);
+  const file=new File([output.blob],output.name,{type:output.blob.type});
+  if(share&&navigator.share&&navigator.canShare?.({files:[file]})){
+    try{await navigator.share({title:`Measurement table for ${client.name}`,text:`Please complete the ${template.name} measurement table and return it to ${currentUser?.name||'the studio'}.`,files:[file]});closeSendMeasurementModal();return;}catch(e){if(e.name==='AbortError')return;}
+  }
+  downloadBlob(output.blob,output.blob.type,output.name);
+  if(share&&client.email){window.location.href=`mailto:${encodeURIComponent(client.email)}?subject=${encodeURIComponent('Please complete your measurement table')}&body=${encodeURIComponent(`Hello ${client.name},\n\nPlease complete the attached ${template.name} measurement table and send it back to us. The file has been downloaded and is ready to attach.\n\nThank you,\n${currentUser?.name||'Costudio'}`)}`;}
+  closeSendMeasurementModal();showToast(share?'Measurement table ready to attach and send':'Blank measurement table downloaded');
+}
 async function shareClientMeasurement(id) {
   const c=CRM.customers.find(x=>x.id===id);if(!c)return;const p=measurementPayload(c);const name=safeFileName(`${c.name}-${p.template.name}`)+'.mtb';const blob=new Blob([JSON.stringify(p,null,2)],{type:'application/json'});const file=new File([blob],name,{type:'application/json'});
   if(navigator.share&&navigator.canShare?.({files:[file]})){try{await navigator.share({title:`Measurements for ${c.name}`,text:'Measurement table from Costudio',files:[file]});return;}catch(e){if(e.name==='AbortError')return;}}
@@ -3705,7 +3780,7 @@ function normaliseImportedMeasurement(p,fileName='measurement-table') {
   if(!p||!p.template||!Array.isArray(p.template.fields)||p.template.fields.length<1||p.template.fields.length>200)return null;
   const cleanText=(v,max)=>String(v??'').replace(/[\u0000-\u001f\u007f]/g,' ').trim().slice(0,max);
   const used=new Set(),fields=[],values={};
-  p.template.fields.forEach((field,index)=>{if(!field||typeof field!=='object')return;const label=cleanText(field.label,120);if(!label)return;let key=slugKey(cleanText(field.key||label,120),index);while(used.has(key))key=key+'_'+(index+1);used.add(key);fields.push({key,label,code:cleanText(field.code,120)});const raw=p.measurements?.[field.key]??p.measurements?.[key]??'';const n=raw===''?'':Number(raw);values[key]=raw===''||(Number.isFinite(n)&&n>=0)?n:'';});
+  p.template.fields.forEach((field,index)=>{if(!field||typeof field!=='object')return;const label=cleanText(field.label,120);if(!label)return;let key=slugKey(cleanText(field.key||label,120),index);while(used.has(key))key=key+'_'+(index+1);used.add(key);fields.push({key,label,code:cleanText(field.code,120)});const raw=p.measurements?.[field.key]??p.measurements?.[key]??'';const n=Number(raw);values[key]=raw===''?'':(Number.isFinite(n)&&n>=0?n:'');});
   if(!fields.length)return null;const date=cleanText(p.takenAt,10);return {client:cleanText(p.client,255),email:cleanText(p.email,255),template:{name:cleanText(p.template.name||fileName.replace(/\.[^.]+$/,''),255)||'Imported table',category:cleanText(p.template.category||'Imported',100),unit:p.template.unit==='cm'?'cm':'in',fields},measurements:values,fitAnalysis:cleanText(p.fitAnalysis,5000),notes:cleanText(p.notes,5000),takenAt:/^\d{4}-\d{2}-\d{2}$/.test(date)?date:new Date().toISOString().slice(0,10),takenBy:cleanText(p.takenBy,255)};
 }
 

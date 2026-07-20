@@ -23,6 +23,10 @@ Small fashion teams commonly design in one set of tools and calculate costs in d
 | Platform landing page | HTML/CSS | Shared Costudio entry point |
 | Design Studio | React, TypeScript, Vite | Collection development and portfolio tools |
 | Design production services | Supabase Edge Functions + Realtime | GPT-5.6 calls and live rooms without a Node host |
+| Design local server | Express, WebSocket, MySQL | Local development and optional persistence |
+| Costing Studio | HTML/CSS/JavaScript | Cost and pricing workflow |
+| Costing API | PHP 8, PDO, MySQL | Session auth, products, CRM, and orders |
+| Studio handoff | Versioned browser-storage contract | Transfers a design draft between same-origin modules |
 
 Shared authentication uses Supabase Auth. A business registered as, for
 example, **Ginani Apparel** receives one protected workspace for Design,
@@ -30,10 +34,14 @@ Costing, clients, and Measurements. Apply
 `supabase/migrations/202607200001_shared_business_platform.sql` in the Supabase
 SQL Editor before registering the first account. Do not run `costing/setup.sql`
 in Supabase; it is the MySQL schema for the PHP costing compatibility layer.
-| Design local server | Express, WebSocket, MySQL | Local development and optional persistence |
-| Costing Studio | HTML/CSS/JavaScript | Cost and pricing workflow |
-| Costing API | PHP 8, PDO, MySQL | Session auth, products, CRM, and orders |
-| Studio handoff | Versioned browser-storage contract | Transfers a design draft between same-origin modules |
+
+### Competition demo
+
+After signing in, open the **Clients** card from the Costudio homepage and
+select **Load Demo Admin**. This adds sample client profiles, Ginani measurement
+records, and orders to the signed-in business without deleting existing data.
+The CRM can take measurements, send blank `.mtb`, `.mmt`, or text tables, and
+receive completed files.
 
 The handoff transfers creative facts, not invented prices. Costing Studio creates blank price and quantity fields so the maker remains responsible for real supplier and production data.
 

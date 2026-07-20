@@ -362,6 +362,22 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      color: inherit;
+      text-decoration: none;
+      transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .feature:hover {
+      transform: translateY(-4px);
+      border-color: var(--teal);
+      box-shadow: 0 18px 40px rgba(21, 31, 29, 0.1);
+    }
+
+    .feature-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: var(--green);
+      font-weight: 850;
     }
 
     .feature-icon {
@@ -510,6 +526,7 @@
         <nav class="nav-actions" aria-label="Studio links">
           <a class="nav-link" href="design/">Design Studio</a>
           <a class="nav-link" href="costing/">Costing Studio</a>
+          <a class="nav-link" href="costing/?workspace=crm&amp;view=clients">Clients</a>
         </nav>
       </div>
     </header>
@@ -539,6 +556,13 @@
               </svg>
               Costing Studio
             </a>
+            <a class="button button-secondary" href="costing/?workspace=crm&amp;view=clients">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="2"></circle>
+                <path d="M3 20c0-4 2.5-6 6-6s6 2 6 6M16 7h5M18.5 4.5v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+              </svg>
+              Client CRM
+            </a>
           </div>
         </div>
 
@@ -566,12 +590,12 @@
       </div>
       <div class="stat">
         <strong>03</strong>
-        <span>Cost materials, labour, overheads and margins before production starts.</span>
+        <span>Manage clients, orders, fittings and measurement files as a first-class workspace.</span>
       </div>
     </section>
 
     <section class="features" aria-label="Costudio capabilities">
-      <article class="feature">
+      <a class="feature" href="design/">
         <div>
           <div class="feature-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none">
@@ -579,12 +603,13 @@
               <path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
             </svg>
           </div>
-          <h2>Marketing Materials</h2>
-          <p>Prepare launch graphics, product cards and campaign visuals from the same place your work is planned.</p>
+          <h2>Design Studio</h2>
+          <p>Develop collections, palettes, fabrics, campaign visuals and product concepts in a collaborative workspace.</p>
+          <span class="feature-link">Open Design Studio →</span>
         </div>
-      </article>
+      </a>
 
-      <article class="feature">
+      <a class="feature" href="costing/">
         <div>
           <div class="feature-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none">
@@ -592,12 +617,13 @@
               <path d="M9 4v16M13 8h2M13 12h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
             </svg>
           </div>
-          <h2>Design Catalogue</h2>
-          <p>Keep designs, collections, fabrics, notes and product references easy to find as the studio grows.</p>
+          <h2>Costing Studio</h2>
+          <p>Track materials, labour, production stages and margins so every product has a confident selling price.</p>
+          <span class="feature-link">Open Costing Studio →</span>
         </div>
-      </article>
+      </a>
 
-      <article class="feature">
+      <a class="feature" href="costing/?workspace=crm&amp;view=clients">
         <div>
           <div class="feature-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none">
@@ -605,10 +631,11 @@
               <path d="M9 8h6M9 12h6M9 16h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
             </svg>
           </div>
-          <h2>Costing Studio</h2>
-          <p>Track materials, labour, production stages and margins so every product has a confident selling price.</p>
+          <h2>Clients</h2>
+          <p>Administer client records, bespoke and stock orders, measurement history, and sent or received PatternMaker tables.</p>
+          <span class="feature-link">Open Client CRM →</span>
         </div>
-      </article>
+      </a>
     </section>
 
     <footer class="site-footer">
@@ -617,6 +644,7 @@
         <nav class="site-footer-nav" aria-label="Footer links">
           <a href="design/">Design Studio</a>
           <a href="costing/">Costing Studio</a>
+          <a href="costing/?workspace=crm&amp;view=clients">Clients</a>
         </nav>
       </div>
     </footer>
