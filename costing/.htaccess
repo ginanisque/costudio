@@ -1,0 +1,7 @@
+DirectoryIndex index.html
+Options -Indexes
+
+<FilesMatch "^\.env(\..*)?$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>

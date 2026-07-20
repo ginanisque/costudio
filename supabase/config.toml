@@ -1,0 +1,4 @@
+project_id = "costudio-build-week"
+
+[functions.costudio-ai]
+verify_jwt = false

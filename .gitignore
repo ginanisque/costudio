@@ -1,0 +1,14 @@
+# Private runtime configuration
+costing/config/local.php
+design-src/.env
+design-src/.env.production
+
+# Generated dependencies and intermediate build output
+design-src/node_modules/
+design-src/dist/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

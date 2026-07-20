@@ -1,0 +1,5 @@
+{
+  "name": "Fashion Collection AI",
+  "description": "Design fashion collections with AI styling, references, web forms, and saved collection management.",
+  "abilities": ["browser", "canvas", "image_gen", "python"]
+}

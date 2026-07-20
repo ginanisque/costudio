@@ -1,0 +1,13 @@
+/* Print-optimized grid for quick lookbooks */
+@media print {
+@page { size: A4; margin: 12mm; }
+body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.lookbook-grid {
+display: grid;
+grid-template-columns: repeat(2, 1fr);
+gap: 10mm;
+}
+.look { page-break-inside: avoid; }
+.look img { width: 100%; height: auto; border-radius: 8px; }
+.look .meta { font: 12px/1.3 system-ui, sans-serif; margin-top: 4mm; }
+}
