@@ -64,7 +64,7 @@ export async function register(businessName: string, email: string, password: st
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { business_name: businessName, display_name: businessName } },
+    options: { emailRedirectTo: `${window.location.origin}/design/`, data: { business_name: businessName, display_name: businessName } },
   });
   if (error) throw error;
   if (!data.session) throw new Error('Check your email to confirm the account, then sign in.');
@@ -72,6 +72,14 @@ export async function register(businessName: string, email: string, password: st
   if (!_user) throw new Error('Your business workspace could not be created. Check the Supabase migration.');
   await initFromServer();
   return _user;
+}
+
+export async function resendConfirmation(email: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase is not configured.');
+  const { error } = await supabase.auth.resend({
+    type: 'signup', email, options: { emailRedirectTo: `${window.location.origin}/design/` },
+  });
+  if (error) throw error;
 }
 
 export async function logout() {

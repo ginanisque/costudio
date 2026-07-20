@@ -628,6 +628,7 @@
         </select>
       </div>
       <div class="auth-error" id="regErr"></div>
+      <button type="button" class="btn btn-secondary btn-full" style="margin-bottom:8px" onclick="resendSignupConfirmation()">Resend confirmation email</button>
       <button type="button" class="btn btn-primary btn-full auth-submit" data-label="Create Account →" onclick="doRegister()">Create Account →</button>
       <div class="switch-link"><a onclick="switchStep('stepEmail')">← Use a different email</a></div>
     </div>
@@ -1430,12 +1431,17 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
 <script src="supabase-auth.js"></script>
+<script src="supabase-data.js"></script>
 <script>
 // ═══════════════════════════════════════════════
 // API LAYER  (all calls go to the PHP backend)
 // ═══════════════════════════════════════════════
 const API = {
   async request(url, method = 'GET', data = null) {
+    if (window.costudioDataApi) {
+      const direct = await window.costudioDataApi.request(url, method, data);
+      if (direct) return direct;
+    }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     const opts = { method, credentials: 'same-origin', signal: controller.signal };
@@ -1717,7 +1723,7 @@ async function doRegister() {
   const { data: authData, error: authError } = await window.costudioAuth.auth.signUp({
     email,
     password: pass,
-    options: { data: { business_name: name, display_name: name } },
+    options: { emailRedirectTo: window.location.origin + '/costing/', data: { business_name: name, display_name: name } },
   });
   if (authError) {
     setBusy('stepRegister', false);
@@ -1741,6 +1747,13 @@ async function doRegister() {
   document.getElementById('regPassword2').value = '';
   hideAuthModal();
   await bootApp();
+}
+
+async function resendSignupConfirmation() {
+  const email=document.getElementById('authEmail').value.trim().toLowerCase();
+  if(!email){showError('stepRegister','Enter your email address first.');return;}
+  const {error}=await window.costudioAuth.auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+'/costing/'}});
+  showError('stepRegister',error?error.message:'Confirmation email resent. Check your inbox and spam folder.');
 }
 
 // ═══════════════════════════════════════════════

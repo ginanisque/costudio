@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { login, register } from '@/utils/auth';
+import { login, register, resendConfirmation } from '@/utils/auth';
 
 interface Props {
   onSuccess: () => void;
@@ -32,6 +32,14 @@ export function LoginModal({ onSuccess }: Props) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function resend() {
+    if (!email) { setError('Enter your email address first.'); return; }
+    setLoading(true); setError('');
+    try { await resendConfirmation(email); setError('Confirmation email resent. Check your inbox and spam folder.'); }
+    catch (err: unknown) { setError(err instanceof Error ? err.message : 'Could not resend confirmation.'); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -102,6 +110,12 @@ export function LoginModal({ onSuccess }: Props) {
             {mode === 'login' ? 'Register' : 'Sign in'}
           </button>
         </p>
+
+        {mode === 'register' && (
+          <button type="button" className="mt-3 w-full text-sm text-muted-foreground underline underline-offset-2" onClick={() => void resend()} disabled={loading}>
+            Resend confirmation email
+          </button>
+        )}
 
         <p className="mt-5 text-center text-xs text-muted-foreground">
           One business account for Design, Costing, and Measurements.

@@ -16,6 +16,10 @@ Open **Supabase Dashboard → SQL Editor**, paste the contents of
 This is the PostgreSQL schema for shared business accounts. Do not paste
 `costing/setup.sql` into Supabase; that file is only for MySQL/MariaDB.
 
+Then run `supabase/migrations/202607200002_vercel_crm_operations.sql`. It adds
+the Vercel-compatible Costing, inventory, client, order, measurement-template,
+feedback, and Demo Admin tables protected by the same business RLS rules.
+
 If Costing's MySQL tables already existed before shared authentication was
 added, run `costing/migrations/001_add_supabase_uid.sql` once in phpMyAdmin.
 Fresh MySQL installations should use the updated `costing/setup.sql` instead.

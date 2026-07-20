@@ -1,0 +1,14 @@
+# Editable sources and server-only PHP/MySQL implementation are not deployed.
+design-src/
+costing/api/
+costing/config/
+costing/migrations/
+costing/admin.php
+costing/setup.sql
+supabase/
+
+# Local/private files
+**/.env
+**/.env.*
+**/local.php
+**/node_modules/

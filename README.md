@@ -43,6 +43,10 @@ records, and orders to the signed-in business without deleting existing data.
 The CRM can take measurements, send blank `.mtb`, `.mmt`, or text tables, and
 receive completed files.
 
+On Vercel, Costing and CRM use `costing/supabase-data.js` and Supabase RLS
+directly. PHP, MySQL configuration, SQL setup files, and editable source are
+excluded from the public deployment through `.vercelignore`.
+
 The handoff transfers creative facts, not invented prices. Costing Studio creates blank price and quantity fields so the maker remains responsible for real supplier and production data.
 
 ## Project structure
