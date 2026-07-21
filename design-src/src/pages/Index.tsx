@@ -863,7 +863,7 @@ const Index = () => {
               <Button variant="outline" onClick={()=> setActiveTab('social')}>Next: Social</Button>
             </div>
             <PortfolioExport 
-              images={images.filter(i=> !!i.imageUrl).map(i=> ({ src: i.imageUrl, caption: i.prompt, id: i.id }))}
+              images={images.filter(i=> !!i.imageUrl).map((i, index)=> ({ src: i.imageUrl, caption: i.title || `Look ${index + 1}`, id: i.id }))}
               currentCollectionId={collectionId}
               designer={{ 
                 name: designerProfile?.name, 
@@ -875,6 +875,7 @@ const Index = () => {
                 instagram: designerProfile?.instagram,
                 twitter: designerProfile?.twitter,
                 tiktok: designerProfile?.tiktok,
+                logo: account?.businessDefaults.logo || designerProfile?.logo,
               }}
             />
           </TabsContent>

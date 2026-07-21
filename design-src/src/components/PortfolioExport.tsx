@@ -14,7 +14,7 @@ import { saveAs } from 'file-saver';
 
 export type ExportImage = { src: string; caption?: string; id?: string };
 
-type DesignerInfo = { name?: string; role?: string; bio?: string; address?: string; website?: string; email?: string; phone?: string; instagram?: string; twitter?: string; tiktok?: string };
+type DesignerInfo = { name?: string; role?: string; bio?: string; address?: string; website?: string; email?: string; phone?: string; instagram?: string; twitter?: string; tiktok?: string; logo?: string };
 
 export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: DesignerInfo; currentCollectionId?: string }> = ({ images = [], designer, currentCollectionId }) => {
   const [portfolioData, setPortfolioData] = useState({
@@ -37,12 +37,16 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
   const selectedCollections = useMemo(() => collections.filter(c => selected[c.id]), [collections, selected]);
   const [includeImages, setIncludeImages] = useState(true);
   const [layoutByCollection, setLayoutByCollection] = useState<Record<string, 'grid' | 'hero'>>({});
-  const [brandLogo, setBrandLogo] = useState<string>('');
-  const [captionTemplate, setCaptionTemplate] = useState<string>('{index}. {caption} · {id}');
+  const [brandLogo, setBrandLogo] = useState<string>(designer?.logo || '');
+  const [captionTemplate, setCaptionTemplate] = useState<string>('{index}. {caption}');
   const [social, setSocial] = useState<{ headline?: string; press_blurb?: string; tweet?: string; instagram?: { caption?: string; hashtags?: string[] } } | null>(null);
   const [cardLogo, setCardLogo] = useState<string>(designer?.logo || '');
-  React.useEffect(()=> { if (designer?.logo) setCardLogo(designer.logo); }, [designer?.logo]);
-  const [wmIds, setWmIds] = useState<boolean>(true);
+  React.useEffect(()=> {
+    const workspaceLogo = designer?.logo || '';
+    setBrandLogo(workspaceLogo);
+    setCardLogo(workspaceLogo);
+  }, [designer?.logo]);
+  const wmIds = false;
   
   // --- Business Card helpers ---
   const makeUrl = (u?: string) => {
@@ -689,19 +693,14 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
                     </div>
                     <div className="space-y-1 pt-2">
                       <div className="font-medium">Caption Template</div>
-                      <div className="text-xs text-muted-foreground">Use tokens: {'{index} {caption} {collection} {portfolio} {id}'}</div>
+                      <div className="text-xs text-muted-foreground">Use tokens: {'{index} {caption} {collection} {portfolio}'}</div>
                       <input className="w-full border rounded px-2 py-1 text-sm" value={captionTemplate} onChange={(e)=> setCaptionTemplate(e.target.value)} />
                     </div>
-                    <div className="flex items-center gap-2 pt-2">
-                      <input id="wmids" type="checkbox" checked={wmIds} onChange={(e)=> setWmIds(e.target.checked)} />
-                      <label htmlFor="wmids">Show ID watermark on images</label>
-                    </div>
                     <div className="space-y-1 pt-2">
-                      <div className="font-medium">Brand / Logo (cover)</div>
-                      <input type="file" accept="image/*" onChange={(e)=> {
-                        const f = e.target.files?.[0]; if (!f) return; const r = new FileReader(); r.onload = ()=> setBrandLogo((r.result as string) || ''); r.readAsDataURL(f);
-                      }} />
+                      <div className="font-medium">Workspace logo</div>
+                      <div className="text-xs text-muted-foreground">Used automatically from Workspace Settings.</div>
                       {brandLogo && (<div className="mt-1"><img src={brandLogo} alt="Logo" style={{ maxWidth: 160, maxHeight: 80, border: '1px solid #eee', borderRadius: 6 }} /></div>)}
+                      {!brandLogo && <Button type="button" variant="outline" size="sm" onClick={()=> { window.location.href = '/workspace/'; }}>Add logo in Workspace Settings</Button>}
                     </div>
                     </div>
                 </div>
@@ -769,10 +768,9 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg space-y-3">
                   <h4 className="font-semibold">Business Card</h4>
-                  <div className="text-xs text-muted-foreground">Uses Designer name, role, email, phone, website, IG. You can add a card logo and QR (website).</div>
+                  <div className="text-xs text-muted-foreground">Uses designer details and the logo saved in Workspace Settings.</div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Card Logo (optional)</label>
-                    <input type="file" accept="image/*" onChange={(e)=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=> setCardLogo((r.result as string)||''); r.readAsDataURL(f); }} />
+                    <label className="text-sm font-medium">Business card logo</label>
                     {cardLogo && <div className="mt-1"><img src={cardLogo} alt="Card logo" style={{ maxWidth: 160, maxHeight: 80, border: '1px solid #eee', borderRadius: 6 }} /></div>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
