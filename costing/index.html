@@ -3562,20 +3562,29 @@ const GINANI_TEMPLATES = [
   { id:'ginani-male', name:'GINANI MEN', category:'ADULT MALE', unit:'in', builtin:true, fields:[] }
 ];
 
-const CRM = { customers: [], orders: [], templates: [], sessionTemplates: [], view: 'clients' };
+const CRM = { customers: [], orders: [], templates: [], clientDesigns: [], sessionTemplates: [], view: 'clients' };
 
 function allMeasurementTemplates() { return [...GINANI_TEMPLATES, ...CRM.templates, ...CRM.sessionTemplates]; }
 
 async function loadCRM() {
-  const [cRes, oRes, tRes] = await Promise.all([
+  const [cRes, oRes, tRes, dRes] = await Promise.all([
     API.request('api/customers.php'),
     API.request('api/orders.php'),
     API.request('api/measurement-templates.php'),
+    API.request('api/client-designs.php'),
   ]);
   CRM.customers = (cRes?.ok && Array.isArray(cRes.data)) ? cRes.data : [];
   CRM.orders    = (oRes?.ok && Array.isArray(oRes.data)) ? oRes.data : [];
   CRM.templates = (tRes?.ok && Array.isArray(tRes.data)) ? tRes.data : [];
+  CRM.clientDesigns = (dRes?.ok && Array.isArray(dRes.data)) ? dRes.data : [];
   renderClients();
+  const requestedClient = Number(new URLSearchParams(location.search).get('client')) || 0;
+  if (requestedClient) requestAnimationFrame(() => {
+    const detail = document.getElementById('cd-' + requestedClient);
+    const card = document.getElementById('cc-' + requestedClient);
+    detail?.classList.add('open');
+    card?.scrollIntoView({behavior:'smooth',block:'center'});
+  });
   renderAllOrders();
   renderMeasurementStudio();
   renderCrmSummary();
@@ -3996,6 +4005,7 @@ function renderClients() {
           ${orders.length ? `<span class="order-count">${orders.length} order${orders.length>1?'s':''}</span>` : ''}
           ${lastOrder ? `<span class="status-badge s-${String(lastOrder.status).replace(/[^a-z_]/g,'')}" style="pointer-events:none">${STATUS_LABELS[lastOrder.status]||lastOrder.status}</span>` : ''}
           <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openMeasurementModal(${c.id})">Measure</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation();location.href='/design/?mode=client&client=${c.id}'">Design Piece</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openOrderModal(${c.id})">+ Order</button>
           <button type="button" class="btn btn-secondary btn-sm" onclick="event.stopPropagation();openClientModal(${c.id})">Edit</button>
           <button type="button" class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteClient(${c.id})">✕</button>
@@ -4022,6 +4032,19 @@ function renderClientDetail(c, orders) {
     : [['Bust/Chest', m.bust], ['Waist', m.waist], ['Hips', m.hips], ['Height', m.height], ['Shoulder', m.shoulder], ['Sleeve', m.sleeve], ['Inseam', m.inseam], ['Nape–Waist', m.napeWaist]].filter(([, v]) => v);
 
   let html = '';
+  const clientDesigns = CRM.clientDesigns.filter(design => String(design.clientId) === String(c.id));
+
+  html += `<div class="detail-section">
+    <div class="detail-lbl" style="display:flex;justify-content:space-between">
+      <span>Design concepts (${clientDesigns.length})</span>
+      <a style="color:var(--accent);cursor:pointer;font-size:.78rem" href="/design/?mode=client&client=${c.id}">+ Design a piece</a>
+    </div>`;
+  if (!clientDesigns.length) {
+    html += `<p style="font-size:.82rem;color:var(--muted);margin:0">No individual designs attached yet.</p>`;
+  } else {
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px">${clientDesigns.map(design => `<div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface)">${design.imageUrl?`<img src="${design.imageUrl}" alt="${esc(design.title)}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block">`:''}<div style="padding:8px;font-size:.78rem;font-weight:600">${esc(design.title)}</div></div>`).join('')}</div>`;
+  }
+  html += `</div>`;
 
   if (measureFields.length) {
     html += `<div class="detail-section">

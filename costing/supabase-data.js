@@ -36,6 +36,7 @@
   function templateRow(r) { return { id:Number(r.id),name:r.name,category:r.category||'',unit:r.unit||'in',fields:r.fields||[],createdAt:r.created_at,updatedAt:r.updated_at }; }
   function materialRow(r) { return { id:Number(r.id),name:r.name,type:r.type,unit:r.unit,pricePerUnit:number(r.price_per_unit),qtyInStock:number(r.qty_in_stock),source:r.source,customerName:r.customer_name||'',notes:r.notes||'',createdAt:r.created_at }; }
   function orderRow(r) { return { id:Number(r.id),orderType:r.order_type,customerId:r.customer_id===null?null:Number(r.customer_id),customerName:r.crm_clients?.name||'',productName:r.product_name,productId:r.product_id===null?null:Number(r.product_id),quantity:Number(r.quantity)||1,priceAgreed:number(r.price_agreed),currency:r.currency,status:r.status,paymentStatus:r.payment_status,depositAmount:number(r.deposit_amount),notes:r.notes||'',materials:r.materials||[],orderedAt:r.ordered_at,dueDate:r.due_date||'',updatedAt:r.updated_at }; }
+  function clientDesignRow(r) { const d=r.data||{};return {id:d.id||r.client_id,clientId:String(d.clientId||''),clientName:d.clientName||'',title:d.title||'Custom client piece',prompt:d.prompt||'',imageUrl:d.imageUrl||'',createdAt:d.createdAt||''}; }
 
   async function syncOrderTask(ctx, order) {
     const sourceId = String(order.id);
@@ -132,6 +133,13 @@
         if (method === 'GET') {const {data,error}=await client.from('crm_clients').select('*').eq('business_id',bid).order('name');return error?fail(error.message):ok((data||[]).map(clientRow));}
         if (method === 'DELETE') {const {error}=await client.from('crm_clients').delete().eq('id',idFrom(rawUrl)).eq('business_id',bid);return error?fail(error.message):ok({ok:true});}
         return save('crm_clients',bid,body,{name:body.name,email:body.email||'',phone:body.phone||'',measurements:body.measurements||{},preferences:body.preferences||'',notes:body.notes||''});
+      }
+      if (file === 'client-designs.php') {
+        const clientId = String(url.searchParams.get('client_id') || '');
+        let query = client.from('design_records').select('client_id,data').eq('business_id',bid).eq('entity_type','piece');
+        if (clientId) query = query.eq('data->>clientId', clientId);
+        const {data,error}=await query.order('created_at',{ascending:false});
+        return error?fail(error.message):ok((data||[]).map(clientDesignRow).filter(item=>item.clientId));
       }
       if (file === 'measurement-templates.php') {
         if (method === 'GET') {const {data,error}=await client.from('crm_measurement_templates').select('*').eq('business_id',bid).order('name');return error?fail(error.message):ok((data||[]).map(templateRow));}

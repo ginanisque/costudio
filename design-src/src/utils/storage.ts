@@ -54,6 +54,10 @@ export type StoredPiece = {
   prompt: string;
   size?: string;
   imageUrl?: string;
+  title?: string;
+  clientId?: string;
+  clientName?: string;
+  kind?: 'collection' | 'client';
   createdAt: string;
   updatedAt?: string;
 };

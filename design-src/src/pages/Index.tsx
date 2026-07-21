@@ -8,6 +8,7 @@ import ImageGallery from '@/components/ImageGallery';
 import ProductUploader from '@/components/ProductUploader';
 import type { ProductItem } from '@/components/ProductUploader';
 import CollectionGenerator from '@/components/CollectionGenerator';
+import ClientPieceDesigner from '@/components/ClientPieceDesigner';
 import Catalogue from '@/components/Catalogue';
 import SessionSidebar from '@/components/SessionSidebar';
 import CollaborationPanel from '@/components/CollaborationPanel';
@@ -152,7 +153,7 @@ const Index = () => {
   const [generatedDescription, setGeneratedDescription] = useState('');
   const [polishedBio, setPolishedBio] = useState('');
   const [images, setImages] = useState<GeneratedImage[]>([]);
-  const [activeTab, setActiveTab] = useState('welcome');
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('mode') === 'client' ? 'client-piece' : 'welcome');
   const [zipIncludeId, setZipIncludeId] = useState(true);
   const [openMsgs, setOpenMsgs] = useState(false);
   const [trendStyles, setTrendStyles] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('trend.styles')||'[]')||[] } catch { return [] } });
@@ -559,6 +560,7 @@ const Index = () => {
             steps={[
               { key: 'profile', label: 'Profile' },
               { key: 'collection', label: 'Collection' },
+              { key: 'client-piece', label: 'Client Piece' },
               { key: 'generate', label: 'Generate' },
               { key: 'export', label: 'Export' },
               { key: 'social', label: 'Social' },
@@ -593,6 +595,10 @@ const Index = () => {
               <Button variant="outline" onClick={() => setActiveTab('welcome')}>Back: Welcome</Button>
               <Button variant="default" onClick={() => setActiveTab('collection')}>Next: Collection</Button>
             </div>
+          </TabsContent>
+
+          <TabsContent value="client-piece">
+            <ClientPieceDesigner palette={attached.palette || []} fabrics={attached.fabrics} models={attached.models} />
           </TabsContent>
 
           <TabsContent value="collection" className="space-y-6">
