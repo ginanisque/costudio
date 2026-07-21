@@ -9,6 +9,14 @@ export type AuthUser = {
   businessName: string;
 };
 
+export type BusinessWorkspace = {
+  id: string;
+  name: string;
+  role: string;
+};
+
+const ACTIVE_WORKSPACE_KEY = 'costudio.activeBusinessId';
+
 let _user: AuthUser | null = null;
 
 export function getUser(): AuthUser | null { return _user; }
@@ -19,14 +27,14 @@ async function resolveUser(): Promise<AuthUser | null> {
   const { data: authData } = await supabase.auth.getUser();
   const account = authData.user;
   if (!account) return null;
-  const { data: membership, error } = await supabase
+  const { data: memberships, error } = await supabase
     .from('business_members')
-    .select('business_id')
+    .select('business_id,role,created_at')
     .eq('user_id', account.id)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (error || !membership?.business_id) return null;
+    .order('created_at', { ascending: true });
+  if (error || !memberships?.length) return null;
+  const preferredId = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+  const membership = memberships.find(item => item.business_id === preferredId) || memberships[0];
   const { data: business } = await supabase
     .from('businesses')
     .select('name')
@@ -42,6 +50,27 @@ async function resolveUser(): Promise<AuthUser | null> {
     businessId: membership.business_id,
     businessName,
   };
+}
+
+export async function listWorkspaces(): Promise<BusinessWorkspace[]> {
+  if (!supabase) return [];
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) return [];
+  const { data: memberships } = await supabase
+    .from('business_members')
+    .select('business_id,role,created_at')
+    .eq('user_id', authData.user.id)
+    .order('created_at', { ascending: true });
+  if (!memberships?.length) return [];
+  const ids = memberships.map(item => item.business_id);
+  const { data: businesses } = await supabase.from('businesses').select('id,name').in('id', ids);
+  const names = new Map((businesses || []).map(item => [item.id, item.name]));
+  return memberships.map(item => ({ id: item.business_id, name: names.get(item.business_id) || 'Costudio', role: item.role }));
+}
+
+export function switchWorkspace(businessId: string) {
+  localStorage.setItem(ACTIVE_WORKSPACE_KEY, businessId);
+  window.location.reload();
 }
 
 export async function checkAuth(): Promise<AuthUser | null> {

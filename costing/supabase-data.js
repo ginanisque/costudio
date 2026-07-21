@@ -14,8 +14,10 @@
     contextPromise = (async () => {
       const { data: auth } = await client.auth.getUser();
       if (!auth.user?.id) return null;
-      const { data: membership, error } = await client.from('business_members').select('business_id').eq('user_id', auth.user.id).limit(1).maybeSingle();
-      if (error || !membership) return null;
+      const { data: memberships, error } = await client.from('business_members').select('business_id,created_at').eq('user_id', auth.user.id).order('created_at');
+      if (error || !memberships?.length) return null;
+      const preferredId = localStorage.getItem('costudio.activeBusinessId');
+      const membership = memberships.find(item => item.business_id === preferredId) || memberships[0];
       const { data: business } = await client.from('businesses').select('*').eq('id', membership.business_id).single();
       if (!business) return null;
       return { auth: auth.user, business };

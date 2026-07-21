@@ -16,6 +16,10 @@ Small fashion teams commonly design in one set of tools and calculate costs in d
 6. Calculate COGS, wholesale, direct-to-consumer, and boutique prices.
 7. Save the product and manage clients, measurements, and orders.
 
+Collaboration is business-wide: the realtime room is identified by the
+registered `@business-name`, and workspace owners or admins can add existing
+Costudio users with designer, costing, measurements, member, or admin roles.
+
 ## Architecture
 
 | Area | Technology | Purpose |

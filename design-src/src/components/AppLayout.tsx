@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from './Header';
 import SettingsPortal from './SettingsPortal';
 import { useTheme } from '@/components/theme-provider';
-import { getUser } from '@/utils/auth';
+import { getUser, listWorkspaces, switchWorkspace, type BusinessWorkspace } from '@/utils/auth';
 import { COMPETITION_DEMO } from '@/config/mode';
 
 const AppLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const [open, setOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const account = getUser();
+  const [workspaces, setWorkspaces] = useState<BusinessWorkspace[]>([]);
   const nextTheme = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
+
+  useEffect(() => { if (open) void listWorkspaces().then(setWorkspaces); }, [open]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-purple-50">
@@ -28,6 +31,22 @@ const AppLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
             <div className="font-medium">Workspace</div>
             <div className="text-muted-foreground">{account?.businessName || 'Costudio'}</div>
             {COMPETITION_DEMO && <div className="text-emerald-700">Competition demo mode</div>}
+            {workspaces.length > 1 && (
+              <div className="space-y-2 pt-3">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Switch workspace</div>
+                {workspaces.map(workspace => (
+                  <button
+                    key={workspace.id}
+                    type="button"
+                    className={`flex w-full items-center justify-between rounded border px-3 py-2 text-left ${workspace.id === account?.businessId ? 'border-emerald-600 bg-emerald-50' : 'hover:bg-slate-50'}`}
+                    onClick={() => workspace.id !== account?.businessId && switchWorkspace(workspace.id)}
+                  >
+                    <span>@{workspace.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')}</span>
+                    <span className="text-xs capitalize text-muted-foreground">{workspace.role}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="rounded border p-4 bg-white text-sm">
