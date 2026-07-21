@@ -5,6 +5,9 @@
   const ok = data => ({ ok: true, status: 200, data });
   const fail = (message, status = 400) => ({ ok: false, status, data: { error: message } });
   const number = value => Number(value) || 0;
+  const orderError = error => error?.message?.includes('due_date')
+    ? 'Order due dates are not active yet. Run Supabase migration 006, wait a few seconds, then refresh Costudio.'
+    : (error?.message || 'Could not save the order.');
   const idFrom = url => Number(new URL(url, location.href).searchParams.get('id')) || 0;
   const dateLabel = value => new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -143,10 +146,10 @@
       if (file === 'orders.php') {
         if (method === 'GET') {let q=client.from('crm_orders').select('*,crm_clients(name)').eq('business_id',bid).order('ordered_at',{ascending:false});const cid=Number(url.searchParams.get('customer_id'))||0;if(cid)q=q.eq('customer_id',cid);const {data,error}=await q;return error?fail(error.message):ok((data||[]).map(orderRow));}
         if (method === 'DELETE') {const orderId=idFrom(rawUrl);const {error}=await client.from('crm_orders').delete().eq('id',orderId).eq('business_id',bid);if(error)return fail(error.message);await client.from('workspace_tasks').delete().eq('business_id',bid).eq('source_type','order').eq('source_id',String(orderId));return ok({ok:true});}
-        if (method === 'PATCH') {const values={};if(body.status!==undefined)values.status=body.status;if(body.paymentStatus!==undefined)values.payment_status=body.paymentStatus;if(body.depositAmount!==undefined)values.deposit_amount=number(body.depositAmount);if(body.priceAgreed!==undefined)values.price_agreed=number(body.priceAgreed);if(body.dueDate!==undefined)values.due_date=body.dueDate||null;const {data,error}=await client.from('crm_orders').update(values).eq('id',Number(body.id)).eq('business_id',bid).select('*,crm_clients(name)').single();if(error)return fail(error.message);await syncOrderTask(ctx,data);return ok({ok:true});}
+        if (method === 'PATCH') {const values={};if(body.status!==undefined)values.status=body.status;if(body.paymentStatus!==undefined)values.payment_status=body.paymentStatus;if(body.depositAmount!==undefined)values.deposit_amount=number(body.depositAmount);if(body.priceAgreed!==undefined)values.price_agreed=number(body.priceAgreed);if(body.dueDate!==undefined)values.due_date=body.dueDate||null;const {data,error}=await client.from('crm_orders').update(values).eq('id',Number(body.id)).eq('business_id',bid).select('*,crm_clients(name)').single();if(error)return fail(orderError(error));await syncOrderTask(ctx,data);return ok({ok:true});}
         const values={customer_id:body.customerId||null,product_name:body.productName,product_id:body.productId||null,order_type:body.orderType||'bespoke',quantity:Number(body.quantity)||1,price_agreed:number(body.priceAgreed),currency:body.currency||ctx.business.currency_symbol,status:body.status||'quote',payment_status:body.paymentStatus||'unpaid',deposit_amount:number(body.depositAmount),notes:body.notes||'',materials:body.materials||[],ordered_at:body.orderedAt?new Date(body.orderedAt).toISOString():new Date().toISOString(),due_date:body.dueDate||null};
         const query=body.id?client.from('crm_orders').update(values).eq('id',Number(body.id)).eq('business_id',bid):client.from('crm_orders').insert({business_id:bid,...values});
-        const {data,error}=await query.select('*,crm_clients(name)').single();if(error)return fail(error.message);await syncOrderTask(ctx,data);return ok({ok:true,id:Number(data.id)});
+        const {data,error}=await query.select('*,crm_clients(name)').single();if(error)return fail(orderError(error));await syncOrderTask(ctx,data);return ok({ok:true,id:Number(data.id)});
       }
       if (file === 'feedback.php') {
         if (method === 'GET') {const {data,error}=await client.from('costudio_feedback').select('*').eq('business_id',bid).maybeSingle();return error?fail(error.message):ok(data?{exists:true,businessType:data.business_type,country:data.country,raisedPrices:data.raised_prices,priceIncrease:data.price_increase,impactText:data.impact_text,consent:data.consent}:{exists:false});}

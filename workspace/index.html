@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Costudio collaborative workspace for fashion design, costing, clients, orders, and measurements.">
+  <link rel="icon" type="image/png" href="/assets/costudio-portrait-icon.png">
+  <title>Workspace | Costudio</title>
+  <style>
+    :root{--ink:#142320;--muted:#66736f;--line:#dce5e1;--panel:#fff;--wash:#f4f8f6;--green:#116b59;--green2:#1b8b74;--teal:#dff4ed;--blue:#3b63ef;--orange:#d66a1f;--red:#c83f49;--shadow:0 14px 40px rgba(20,35,32,.09)}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--wash)}button,input,select,textarea{font:inherit}button,a{transition:150ms ease}.hidden{display:none!important}
+    .app{min-height:100vh;display:grid;grid-template-columns:248px minmax(0,1fr)}
+    .sidebar{position:sticky;top:0;height:100vh;padding:20px 14px;border-right:1px solid var(--line);background:#0f332c;color:#eefbf6;display:flex;flex-direction:column;z-index:20}
+    .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 22px}.brand-mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#17a082;color:#fff;font-size:20px;font-weight:900}.brand strong{font-size:20px}.brand small{display:block;color:#9bc5b9;margin-top:1px}
+    .workspace-chip{margin:0 6px 18px;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.07)}.workspace-chip small{color:#9bc5b9}.workspace-chip strong{display:block;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.workspace-chip select{width:100%;margin-top:8px;padding:6px;border:1px solid rgba(255,255,255,.16);border-radius:7px;color:#fff;background:#17483e}
+    .nav-label{padding:8px 12px;color:#78aa9c;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.nav{display:grid;gap:4px}.nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;color:#d8eee7;text-decoration:none;font-size:14px;font-weight:650}.nav a:hover,.nav a.active{color:#fff;background:rgba(255,255,255,.11)}.nav svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9}
+    .sidebar-foot{margin-top:auto;padding:14px 8px 4px;border-top:1px solid rgba(255,255,255,.1);color:#9bc5b9;font-size:12px;line-height:1.5}
+    .main{min-width:0}.topbar{height:72px;padding:0 28px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.92);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:15}.topbar h1{margin:0;font-size:19px}.topbar p{margin:2px 0 0;color:var(--muted);font-size:12px}.top-actions{display:flex;gap:9px;align-items:center}.avatar{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--teal);color:var(--green);font-weight:900}.mobile-menu{display:none}
+    .content{max-width:1500px;margin:auto;padding:26px}.welcome{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:22px}.welcome h2{margin:0;font-size:clamp(24px,3vw,34px);letter-spacing:-.03em}.welcome p{margin:7px 0 0;color:var(--muted)}
+    .btn{border:1px solid var(--line);border-radius:9px;padding:10px 14px;background:#fff;color:var(--ink);font-weight:750;cursor:pointer}.btn:hover{border-color:#9eb8af;transform:translateY(-1px)}.btn-primary{border-color:var(--green);background:var(--green);color:#fff}.btn-primary:hover{background:#0c5b4b}.btn-small{padding:7px 10px;font-size:12px}.icon-btn{width:38px;height:38px;padding:0;display:grid;place-items:center}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}.stat{padding:17px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}.stat small{display:block;color:var(--muted);font-weight:650}.stat strong{display:block;margin-top:8px;font-size:25px}.stat em{font-style:normal;color:var(--green);font-size:12px}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.search{min-width:220px;max-width:360px;flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;outline:none}.search:focus,input:focus,textarea:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 3px rgba(27,139,116,.1);outline:none}
+    .workspace-grid{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:18px;align-items:start}.board-wrap{min-width:0}.board{display:grid;grid-template-columns:repeat(3,minmax(240px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}.column{min-height:420px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#edf3f0}.column.drag-over{outline:2px dashed var(--green2);outline-offset:-5px}.column-head{display:flex;align-items:center;justify-content:space-between;padding:3px 3px 12px}.column-title{display:flex;align-items:center;gap:8px;font-weight:850}.dot{width:9px;height:9px;border-radius:50%;background:#85928e}.column[data-status="in_progress"] .dot{background:var(--blue)}.column[data-status="done"] .dot{background:var(--green2)}.count{padding:2px 7px;border-radius:999px;background:#fff;color:var(--muted);font-size:11px}
+    .task-list{display:grid;gap:9px}.task{padding:13px;border:1px solid #d8e2de;border-radius:10px;background:#fff;box-shadow:0 3px 10px rgba(20,35,32,.04);cursor:grab}.task:active{cursor:grabbing}.task-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.task h3{margin:0;font-size:14px;line-height:1.4}.task p{margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.45}.priority{flex:0 0 auto;padding:3px 7px;border-radius:999px;background:#eef2f1;color:#687570;font-size:10px;font-weight:850;text-transform:uppercase}.priority.high{background:#fff0e5;color:var(--orange)}.priority.urgent{background:#ffe9eb;color:var(--red)}.priority.low{background:#eaf3ff;color:#3c67a9}.task-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;color:var(--muted);font-size:11px}.task-person{display:flex;align-items:center;gap:6px;min-width:0}.mini-avatar{width:23px;height:23px;border-radius:50%;display:grid;place-items:center;background:var(--teal);color:var(--green);font-size:9px;font-weight:900}.overdue{color:var(--red);font-weight:750}.empty{padding:32px 12px;text-align:center;color:#81908b;font-size:12px;border:1px dashed #cbd7d2;border-radius:9px}
+    .rail{display:grid;gap:14px}.rail-card{border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}.rail-head{padding:15px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}.rail-head strong{font-size:14px}.members{padding:8px}.member{display:flex;align-items:center;gap:10px;padding:9px;border-radius:8px}.member:hover{background:var(--wash)}.member-info{min-width:0}.member-info strong,.member-info small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.member-info strong{font-size:12px}.member-info small{margin-top:2px;color:var(--muted);font-size:10px;text-transform:capitalize}
+    .messages{height:260px;padding:12px;overflow:auto;display:grid;align-content:start;gap:10px}.message{padding:9px 10px;border-radius:9px;background:var(--wash)}.message strong{font-size:11px}.message time{float:right;color:#8a9692;font-size:9px}.message p{margin:5px 0 0;font-size:12px;line-height:1.4}.message-form{display:flex;gap:7px;padding:10px;border-top:1px solid var(--line)}.message-form input{min-width:0;flex:1;padding:9px;border:1px solid var(--line);border-radius:8px}
+    .setup{margin-bottom:16px;padding:13px 15px;border:1px solid #f1c87b;border-radius:10px;background:#fff7e7;color:#744d0c;font-size:13px}
+    dialog{width:min(540px,calc(100% - 28px));padding:0;border:0;border-radius:14px;box-shadow:0 30px 90px rgba(10,25,21,.28)}dialog.wide{width:min(780px,calc(100% - 28px));max-height:92vh;overflow:auto}dialog::backdrop{background:rgba(12,30,25,.46);backdrop-filter:blur(3px)}.modal-head{padding:20px 22px;border-bottom:1px solid var(--line)}.modal-head h2{margin:0;font-size:20px}.modal-head p{margin:5px 0 0;color:var(--muted);font-size:13px}.form{padding:20px 22px;display:grid;gap:14px}.field{display:grid;gap:6px}.field label{font-size:12px;font-weight:800}.field input,.field textarea,.field select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:8px;background:#fff}.field textarea{min-height:85px;resize:vertical}.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.form-section{padding-top:4px;font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}.modal-actions{display:flex;justify-content:space-between;gap:10px;padding-top:4px}.danger{color:var(--red)}.logo-row{display:flex;align-items:center;gap:14px}.logo-preview{width:72px;height:72px;border:1px dashed #afc3bb;border-radius:12px;background:var(--wash);display:grid;place-items:center;overflow:hidden;color:var(--muted);font-weight:900}.logo-preview img{width:100%;height:100%;object-fit:contain;background:#fff}.settings-note{padding:10px 12px;border-radius:8px;background:var(--teal);color:#23594d;font-size:12px}.form-error{color:var(--red);font-size:12px}.form-success{color:var(--green);font-size:12px}
+    .loading{min-height:100vh;display:grid;place-items:center;background:var(--wash)}.loader{width:34px;height:34px;border:3px solid #d8e5e0;border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:1050px){.workspace-grid{grid-template-columns:1fr}.rail{grid-template-columns:1fr 1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:760px){.app{grid-template-columns:1fr}.sidebar{position:fixed;left:-260px;width:248px;transition:left .2s}.sidebar.open{left:0;box-shadow:30px 0 80px rgba(0,0,0,.24)}.mobile-menu{display:grid}.topbar{padding:0 16px}.content{padding:18px}.welcome{align-items:stretch;flex-direction:column}.stats{grid-template-columns:1fr 1fr}.board{grid-template-columns:repeat(3,270px)}.rail{grid-template-columns:1fr}.toolbar{align-items:stretch;flex-direction:column}.search{max-width:none;width:100%}.form-row{grid-template-columns:1fr}.logo-row{align-items:flex-start;flex-wrap:wrap}}
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading"><div><div class="loader"></div><p style="color:#66736f;font-size:13px">Opening Costudio workspace…</p></div></div>
+  <div id="app" class="app hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand"><div class="brand-mark">C</div><div><strong>Costudio</strong><small>Fashion operations</small></div></div>
+      <div class="workspace-chip"><small>Workspace</small><strong id="workspaceHandle">@costudio</strong><select id="workspaceSwitch" class="hidden" aria-label="Switch workspace"></select></div>
+      <div class="nav-label">Workspace</div>
+      <nav class="nav">
+        <a class="active" href="/workspace/"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>Overview</a>
+        <a href="#tasks"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Tasks</a>
+        <a href="#messages"><svg viewBox="0 0 24 24"><path d="M4 5h16v12H8l-4 3z"/></svg>Messages</a>
+        <a id="settingsNav" href="#settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21h-4v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3.1 14H3v-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3h4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</a>
+      </nav>
+      <div class="nav-label" style="margin-top:12px">Studios</div>
+      <nav class="nav">
+        <a href="../design/"><svg viewBox="0 0 24 24"><path d="m4 20 4-1 11-11-3-3L5 16zM14 7l3 3"/></svg>Design</a>
+        <a href="../costing/"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h1M8 15h2M12 15h2M16 15h1"/></svg>Costing</a>
+        <a href="../costing/?workspace=crm&amp;view=measurements"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16M7 5v4M12 10v4M17 15v4"/></svg>Measurements</a>
+        <a href="../costing/?workspace=crm&amp;view=clients"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-4 2-6 6-6s6 2 6 6M16 7h5M18.5 4.5v5"/></svg>Clients</a>
+        <a href="../costing/?workspace=crm&amp;view=orders"><svg viewBox="0 0 24 24"><path d="M5 6h14l-1 14H6zM8 6a4 4 0 0 1 8 0"/></svg>Orders</a>
+      </nav>
+      <div class="sidebar-foot"><strong id="modeLabel">Shared workspace</strong><br>From sketch to customer.</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div style="display:flex;align-items:center;gap:11px"><button id="menuButton" class="btn icon-btn mobile-menu" aria-label="Open menu">☰</button><div><h1 id="topWorkspace">Workspace</h1><p>Collaborative fashion operations</p></div></div>
+        <div class="top-actions"><button id="quickTask" class="btn btn-primary">+ New task</button><button id="signOut" class="btn" type="button">Sign out</button><div id="userAvatar" class="avatar">C</div></div>
+      </header>
+
+      <div class="content">
+        <section class="welcome"><div><h2>From sketch to customer.</h2><p>Design, cost, measure, manage orders, and deliver every garment together.</p></div><button id="welcomeTask" class="btn btn-primary">Create task</button></section>
+        <div id="setupNotice" class="setup hidden"></div>
+        <section class="stats">
+          <div class="stat"><small>Open tasks</small><strong id="statOpen">0</strong><em>Across this workspace</em></div>
+          <div class="stat"><small>In progress</small><strong id="statProgress">0</strong><em>Being worked on</em></div>
+          <div class="stat"><small>Completed</small><strong id="statDone">0</strong><em>Ready or delivered</em></div>
+          <div class="stat"><small>Team members</small><strong id="statMembers">1</strong><em>Shared access</em></div>
+        </section>
+
+        <section id="tasks" class="workspace-grid">
+          <div class="board-wrap">
+            <div class="toolbar"><div><strong>Task board</strong><div style="color:var(--muted);font-size:12px;margin-top:3px">Drag tasks between stages</div></div><input id="taskSearch" class="search" type="search" placeholder="Search tasks…"></div>
+            <div id="board" class="board">
+              <section class="column" data-status="todo"><div class="column-head"><div class="column-title"><i class="dot"></i>To do</div><span class="count">0</span></div><div class="task-list"></div></section>
+              <section class="column" data-status="in_progress"><div class="column-head"><div class="column-title"><i class="dot"></i>In progress</div><span class="count">0</span></div><div class="task-list"></div></section>
+              <section class="column" data-status="done"><div class="column-head"><div class="column-title"><i class="dot"></i>Done</div><span class="count">0</span></div><div class="task-list"></div></section>
+            </div>
+          </div>
+
+          <aside class="rail">
+            <section class="rail-card"><div class="rail-head"><strong>Workspace members</strong><a href="../design/" style="font-size:11px;color:var(--green)">Manage</a></div><div id="memberList" class="members"></div></section>
+            <section id="messages" class="rail-card"><div class="rail-head"><strong>Team messages</strong><span id="onlineLabel" style="color:var(--green);font-size:11px">Live</span></div><div id="messageList" class="messages"></div><form id="messageForm" class="message-form"><input id="messageInput" maxlength="2000" placeholder="Write an update…"><button class="btn btn-primary btn-small">Send</button></form></section>
+          </aside>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="taskDialog">
+    <div class="modal-head"><h2 id="taskDialogTitle">Create task</h2></div>
+    <form id="taskForm" class="form">
+      <input id="taskId" type="hidden">
+      <div class="field"><label for="taskTitle">Task title</label><input id="taskTitle" maxlength="180" required placeholder="e.g. Finalize evening gown measurements"></div>
+      <div class="field"><label for="taskDescription">Description</label><textarea id="taskDescription" placeholder="Add the details your team needs…"></textarea></div>
+      <div class="form-row"><div class="field"><label for="taskStatus">Status</label><select id="taskStatus"><option value="todo">To do</option><option value="in_progress">In progress</option><option value="done">Done</option></select></div><div class="field"><label for="taskPriority">Priority</label><select id="taskPriority"><option value="normal">Normal</option><option value="low">Low</option><option value="high">High</option><option value="urgent">Urgent</option></select></div></div>
+      <div class="form-row"><div class="field"><label for="taskAssignee">Assignee</label><select id="taskAssignee"><option value="">Unassigned</option></select></div><div class="field"><label for="taskDue">Due date</label><input id="taskDue" type="date"></div></div>
+      <div class="modal-actions"><button id="deleteTask" type="button" class="btn danger hidden">Delete task</button><div style="margin-left:auto;display:flex;gap:8px"><button id="cancelTask" type="button" class="btn">Cancel</button><button class="btn btn-primary">Save task</button></div></div>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="wide">
+    <div class="modal-head"><h2>Workspace settings</h2><p>Business defaults used by Design, Costing, Clients, Orders, and Measurements.</p></div>
+    <form id="settingsForm" class="form">
+      <div class="settings-note">Enter these details once. Every Costudio studio in this workspace will use the same identity, currency, and units.</div>
+      <div class="form-section">Business identity</div>
+      <div class="form-row"><div class="field"><label for="businessName">Display name</label><input id="businessName" maxlength="150" required></div><div class="field"><label for="legalName">Legal name</label><input id="legalName" maxlength="180"></div></div>
+      <div class="logo-row"><div id="logoPreview" class="logo-preview">Logo</div><div class="field" style="flex:1"><label for="businessLogo">Business logo</label><input id="businessLogo" type="file" accept="image/png,image/jpeg,image/webp"><small style="color:var(--muted)">PNG, JPG, or WebP. It is resized before saving.</small></div><button id="removeLogo" type="button" class="btn btn-small">Remove</button></div>
+      <div class="form-row"><div class="field"><label for="businessEmail">Business email</label><input id="businessEmail" type="email" maxlength="180"></div><div class="field"><label for="website">Website</label><input id="website" type="url" maxlength="240" placeholder="https://"></div></div>
+      <div class="form-row"><div class="field"><label for="phonePrimary">Primary phone</label><input id="phonePrimary" type="tel" maxlength="60"></div><div class="field"><label for="phoneSecondary">Second phone</label><input id="phoneSecondary" type="tel" maxlength="60"></div></div>
+      <div class="form-section">Address</div>
+      <div class="field"><label for="address1">Address</label><input id="address1" maxlength="220"></div>
+      <div class="field"><label for="address2">Address line 2</label><input id="address2" maxlength="220"></div>
+      <div class="form-row"><div class="field"><label for="city">City</label><input id="city" maxlength="100"></div><div class="field"><label for="stateRegion">State / region</label><input id="stateRegion" maxlength="100"></div></div>
+      <div class="form-row"><div class="field"><label for="postalCode">Postal code</label><input id="postalCode" maxlength="30"></div><div class="field"><label for="countryCode">Country</label><select id="countryCode"><option value="NG">Nigeria</option><option value="GH">Ghana</option><option value="KE">Kenya</option><option value="ZA">South Africa</option><option value="GB">United Kingdom</option><option value="US">United States</option><option value="OTHER">Other</option></select></div></div>
+      <div class="form-section">Workspace defaults</div>
+      <div class="form-row"><div class="field"><label for="currency">Currency</label><select id="currency"><option value="NGN|₦">Nigerian Naira (₦)</option><option value="USD|$">US Dollar ($)</option><option value="GBP|£">British Pound (£)</option><option value="EUR|€">Euro (€)</option><option value="GHS|₵">Ghanaian Cedi (₵)</option><option value="KES|KSh">Kenyan Shilling (KSh)</option><option value="ZAR|R">South African Rand (R)</option></select></div><div class="field"><label for="materialUnit">Fabric/material unit</label><select id="materialUnit"><option value="m">Metres</option><option value="yd">Yards</option></select></div></div>
+      <div class="form-row"><div class="field"><label for="measurementUnit">Body measurement unit</label><select id="measurementUnit"><option value="cm">Centimetres</option><option value="in">Inches</option></select></div><div class="field"><label for="taxId">Tax / registration number</label><input id="taxId" maxlength="100"></div></div>
+      <div id="settingsMessage" aria-live="polite"></div>
+      <div class="modal-actions"><span id="settingsPermission" style="color:var(--muted);font-size:12px"></span><div style="margin-left:auto;display:flex;gap:8px"><button id="cancelSettings" type="button" class="btn">Close</button><button id="saveSettings" class="btn btn-primary">Save workspace settings</button></div></div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL='https://krbedficypujbukslgif.supabase.co';
+    const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyYmVkZmljeXB1amJ1a3NsZ2lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NjM2MzgsImV4cCI6MjEwMDEzOTYzOH0.BSHiK0GMqFMk_Go0vmWuQ4FuIf4p0MPlUYAK5cINGwU';
+    const COMPETITION_DEMO=false;
+    const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
+    const ACTIVE_KEY='costudio.activeBusinessId';
+    let currentUser=null,currentBusiness=null,workspaces=[],members=[],tasks=[],messages=[],taskChannel=null,messageChannel=null,pendingLogo='';
+    const $=id=>document.getElementById(id);
+    const esc=value=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    const handle=name=>'@'+String(name||'costudio').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const initials=name=>String(name||'C').split(/\s+/).slice(0,2).map(part=>part[0]||'').join('').toUpperCase();
+    const memberName=id=>members.find(member=>member.user_id===id)?.display_name||'Workspace member';
+    const friendlyDate=value=>value?new Date(value+'T12:00:00').toLocaleDateString(undefined,{month:'short',day:'numeric'}):'';
+
+    async function ensureSession(){
+      let {data:{session}}=await db.auth.getSession();
+      if(session?.user?.is_anonymous&&!COMPETITION_DEMO){await db.auth.signOut();session=null;}
+      if(!session&&!COMPETITION_DEMO){location.replace('/auth.html?next=%2Fworkspace%2F');return new Promise(()=>{});}
+      if(!session){const result=await db.auth.signInAnonymously({options:{data:{business_name:'Costudio Demo',display_name:'Demo Designer'}}});if(result.error)throw result.error;session=result.data.session;}
+      currentUser=session.user;
+    }
+
+    async function loadWorkspace(){
+      const {data:membershipRows,error}=await db.from('business_members').select('business_id,role,created_at').eq('user_id',currentUser.id).order('created_at');
+      if(error||!membershipRows?.length)throw error||new Error('No Costudio workspace was created.');
+      const ids=membershipRows.map(row=>row.business_id);
+      const {data:businessRows,error:businessError}=await db.from('businesses').select('*').in('id',ids);
+      if(businessError)throw businessError;
+      const byId=new Map((businessRows||[]).map(row=>[row.id,row]));
+      workspaces=membershipRows.map(row=>({...byId.get(row.business_id),role:row.role})).filter(row=>row.id);
+      const preferred=localStorage.getItem(ACTIVE_KEY);
+      currentBusiness=workspaces.find(row=>row.id===preferred)||workspaces[0];
+      localStorage.setItem(ACTIVE_KEY,currentBusiness.id);
+    }
+
+    async function loadMembers(){
+      const result=await db.rpc('list_business_members',{target_business_id:currentBusiness.id});
+      members=result.error?[{user_id:currentUser.id,display_name:currentUser.user_metadata?.display_name||currentBusiness.name,email:currentUser.email||'',role:currentBusiness.role,joined_at:new Date().toISOString()}]:(result.data||[]);
+      renderMembers();
+    }
+
+    async function loadTasks(){
+      const {data,error}=await db.from('workspace_tasks').select('*').eq('business_id',currentBusiness.id).order('updated_at',{ascending:false});
+      if(error){showSetup('Run Supabase migration 004 to activate shared tasks and messages.');tasks=[];}else{tasks=data||[];hideSetup();if(!tasks.length&&(currentUser.is_anonymous||currentUser.email==='demo@ginani.net'))await seedDemoTasks();}
+      renderTasks();
+    }
+
+    async function seedDemoTasks(){
+      const tomorrow=new Date(Date.now()+864e5).toISOString().slice(0,10),week=new Date(Date.now()+5*864e5).toISOString().slice(0,10);
+      const rows=[
+        {title:'Review collection direction',description:'Confirm silhouettes, palette, and hero looks in Design Studio.',status:'in_progress',priority:'high',due_date:tomorrow},
+        {title:'Cost the silk evening gown',description:'Add fabric consumption, trims, labour, and overheads.',status:'todo',priority:'urgent',due_date:week},
+        {title:'Confirm Amina fitting',description:'Review the GINANI FEMALE measurement table before cutting.',status:'todo',priority:'normal',due_date:week},
+        {title:'Prepare client order summary',description:'Check deposits and production status for active orders.',status:'done',priority:'normal',due_date:null}
+      ].map(row=>({business_id:currentBusiness.id,created_by:currentUser.id,...row}));
+      const {data}=await db.from('workspace_tasks').insert(rows).select('*');if(data)tasks=data;
+    }
+
+    async function loadMessages(){
+      const {data,error}=await db.from('workspace_messages').select('*').eq('business_id',currentBusiness.id).order('created_at',{ascending:true}).limit(60);
+      messages=error?[]:(data||[]);renderMessages();
+    }
+
+    function renderShell(){
+      const tag=handle(currentBusiness.name);$('workspaceHandle').textContent=tag;$('topWorkspace').textContent=tag;$('modeLabel').textContent=currentUser.is_anonymous?'Competition demo':'Shared business workspace';$('userAvatar').textContent=initials(currentUser.user_metadata?.display_name||currentBusiness.name);
+      if(currentBusiness.logo_data_url){$('userAvatar').innerHTML=`<img src="${esc(currentBusiness.logo_data_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;}
+      if(workspaces.length>1){$('workspaceSwitch').classList.remove('hidden');$('workspaceSwitch').innerHTML=workspaces.map(row=>`<option value="${row.id}" ${row.id===currentBusiness.id?'selected':''}>${esc(handle(row.name))}</option>`).join('');}
+    }
+
+    function showLogo(value){$('logoPreview').innerHTML=value?`<img src="${esc(value)}" alt="Business logo preview">`:'Logo';}
+    function openSettings(){
+      const b=currentBusiness||{};pendingLogo=b.logo_data_url||'';
+      $('businessName').value=b.name||'';$('legalName').value=b.legal_name||'';$('businessEmail').value=b.business_email||currentUser.email||'';$('website').value=b.website||'';$('phonePrimary').value=b.phone_primary||'';$('phoneSecondary').value=b.phone_secondary||'';$('address1').value=b.address_line_1||'';$('address2').value=b.address_line_2||'';$('city').value=b.city||'';$('stateRegion').value=b.state_region||'';$('postalCode').value=b.postal_code||'';$('countryCode').value=b.country_code||'NG';$('materialUnit').value=b.measurement_unit||'m';$('measurementUnit').value=b.measurement_record_unit||'cm';$('taxId').value=b.tax_id||'';
+      const currency=`${b.currency_code||'USD'}|${b.currency_symbol||'$'}`;if([...$('currency').options].some(option=>option.value===currency))$('currency').value=currency;
+      const canEdit=['owner','admin'].includes(b.role);$('settingsForm').querySelectorAll('input,select').forEach(input=>input.disabled=!canEdit);$('saveSettings').classList.toggle('hidden',!canEdit);$('removeLogo').classList.toggle('hidden',!canEdit);$('settingsPermission').textContent=canEdit?'Shared with every workspace member.':'Only workspace owners and admins can change these defaults.';$('settingsMessage').textContent='';showLogo(pendingLogo);$('settingsDialog').showModal();
+    }
+    async function resizeLogo(file){
+      if(!file.type.startsWith('image/'))throw new Error('Choose a PNG, JPG, or WebP image.');
+      const source=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Could not read the logo.'));reader.readAsDataURL(file)});
+      const image=await new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('Could not open the logo.'));img.src=source});
+      const scale=Math.min(1,512/Math.max(image.width,image.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);return canvas.toDataURL(file.type==='image/png'?'image/png':'image/jpeg',.84);
+    }
+    async function saveSettings(event){
+      event.preventDefault();const message=$('settingsMessage'),button=$('saveSettings'),currency=$('currency').value.split('|');message.className='';message.textContent='';button.disabled=true;button.textContent='Saving…';
+      const payload={name:$('businessName').value.trim(),legal_name:$('legalName').value.trim(),business_email:$('businessEmail').value.trim(),website:$('website').value.trim(),phone_primary:$('phonePrimary').value.trim(),phone_secondary:$('phoneSecondary').value.trim(),address_line_1:$('address1').value.trim(),address_line_2:$('address2').value.trim(),city:$('city').value.trim(),state_region:$('stateRegion').value.trim(),postal_code:$('postalCode').value.trim(),country_code:$('countryCode').value,currency_code:currency[0],currency_symbol:currency[1],measurement_unit:$('materialUnit').value,measurement_record_unit:$('measurementUnit').value,tax_id:$('taxId').value.trim(),logo_data_url:pendingLogo};
+      const {data,error}=await db.from('businesses').update(payload).eq('id',currentBusiness.id).select('*').single();button.disabled=false;button.textContent='Save workspace settings';
+      if(error){message.className='form-error';message.textContent=error.message.includes('column')?'Run Supabase migration 005, then save again.':error.message;return;}
+      currentBusiness={...data,role:currentBusiness.role};workspaces=workspaces.map(row=>row.id===currentBusiness.id?currentBusiness:row);renderShell();message.className='form-success';message.textContent='Workspace defaults saved. Design and Costing will use them automatically.';
+    }
+
+    function renderMembers(){
+      $('memberList').innerHTML=members.map(member=>`<div class="member"><span class="mini-avatar">${esc(initials(member.display_name))}</span><div class="member-info"><strong>${esc(member.display_name)}</strong><small>${esc(member.role)}</small></div></div>`).join('')||'<div class="empty">No members yet</div>';
+      $('statMembers').textContent=members.length||1;
+      $('taskAssignee').innerHTML='<option value="">Unassigned</option>'+members.map(member=>`<option value="${member.user_id}">${esc(member.display_name)}</option>`).join('');
+    }
+
+    function renderTasks(){
+      const query=$('taskSearch').value.trim().toLowerCase();
+      const filtered=tasks.filter(task=>!query||(task.title+' '+task.description).toLowerCase().includes(query));
+      document.querySelectorAll('.column').forEach(column=>{const status=column.dataset.status,rows=filtered.filter(task=>task.status===status);column.querySelector('.count').textContent=rows.length;column.querySelector('.task-list').innerHTML=rows.length?rows.map(taskCard).join(''):'<div class="empty">Drop tasks here</div>';});
+      $('statOpen').textContent=tasks.filter(task=>task.status!=='done').length;$('statProgress').textContent=tasks.filter(task=>task.status==='in_progress').length;$('statDone').textContent=tasks.filter(task=>task.status==='done').length;
+      document.querySelectorAll('.task').forEach(card=>{card.addEventListener('click',()=>openTask(card.dataset.id));card.addEventListener('dragstart',event=>event.dataTransfer.setData('text/plain',card.dataset.id));});
+    }
+
+    function taskCard(task){
+      const overdue=task.due_date&&task.status!=='done'&&task.due_date<new Date().toISOString().slice(0,10),assignee=task.assignee_id?memberName(task.assignee_id):'Unassigned';
+      return `<article class="task" draggable="true" data-id="${task.id}"><div class="task-top"><h3>${esc(task.title)}</h3><span class="priority ${task.priority}">${esc(task.priority)}</span></div>${task.description?`<p>${esc(task.description)}</p>`:''}<div class="task-meta"><span class="task-person"><i class="mini-avatar">${esc(initials(assignee))}</i><span>${esc(assignee)}</span></span><span class="${overdue?'overdue':''}">${overdue?'Overdue · ':''}${esc(friendlyDate(task.due_date))}</span></div></article>`;
+    }
+
+    function renderMessages(){
+      $('messageList').innerHTML=messages.length?messages.map(message=>`<div class="message"><strong>${esc(memberName(message.created_by))}</strong><time>${new Date(message.created_at).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</time><p>${esc(message.body)}</p></div>`).join(''):'<div class="empty">Share the first workspace update.</div>';$('messageList').scrollTop=$('messageList').scrollHeight;
+    }
+
+    function openTask(id=''){
+      const task=tasks.find(row=>row.id===id);$('taskDialogTitle').textContent=task?'Edit task':'Create task';$('taskId').value=task?.id||'';$('taskTitle').value=task?.title||'';$('taskDescription').value=task?.description||'';$('taskStatus').value=task?.status||'todo';$('taskPriority').value=task?.priority||'normal';$('taskAssignee').value=task?.assignee_id||'';$('taskDue').value=task?.due_date||'';$('deleteTask').classList.toggle('hidden',!task);$('taskDialog').showModal();
+    }
+
+    async function saveTask(event){
+      event.preventDefault();const id=$('taskId').value,payload={business_id:currentBusiness.id,title:$('taskTitle').value.trim(),description:$('taskDescription').value.trim(),status:$('taskStatus').value,priority:$('taskPriority').value,assignee_id:$('taskAssignee').value||null,due_date:$('taskDue').value||null};
+      const result=id?await db.from('workspace_tasks').update(payload).eq('id',id).eq('business_id',currentBusiness.id).select('*').single():await db.from('workspace_tasks').insert({...payload,created_by:currentUser.id}).select('*').single();
+      if(result.error)return alert(result.error.message);$('taskDialog').close();await loadTasks();
+    }
+
+    async function deleteTask(){const id=$('taskId').value;if(!id||!confirm('Delete this task?'))return;const {error}=await db.from('workspace_tasks').delete().eq('id',id).eq('business_id',currentBusiness.id);if(error)return alert(error.message);$('taskDialog').close();await loadTasks();}
+    async function moveTask(id,status){const task=tasks.find(row=>row.id===id);if(!task||task.status===status)return;task.status=status;renderTasks();const {error}=await db.from('workspace_tasks').update({status}).eq('id',id).eq('business_id',currentBusiness.id);if(error){alert(error.message);await loadTasks();}}
+    async function sendMessage(event){event.preventDefault();const body=$('messageInput').value.trim();if(!body)return;$('messageInput').value='';const {error}=await db.from('workspace_messages').insert({business_id:currentBusiness.id,body,created_by:currentUser.id});if(error)alert(error.message);else await loadMessages();}
+
+    function subscribe(){
+      if(taskChannel)db.removeChannel(taskChannel);if(messageChannel)db.removeChannel(messageChannel);
+      taskChannel=db.channel('workspace-tasks-'+currentBusiness.id).on('postgres_changes',{event:'*',schema:'public',table:'workspace_tasks',filter:`business_id=eq.${currentBusiness.id}`},()=>loadTasks()).subscribe();
+      messageChannel=db.channel('workspace-messages-'+currentBusiness.id).on('postgres_changes',{event:'*',schema:'public',table:'workspace_messages',filter:`business_id=eq.${currentBusiness.id}`},()=>loadMessages()).subscribe();
+    }
+    function showSetup(text){$('setupNotice').textContent=text;$('setupNotice').classList.remove('hidden')}function hideSetup(){$('setupNotice').classList.add('hidden')}
+    function bind(){
+      $('quickTask').onclick=()=>openTask();$('welcomeTask').onclick=()=>openTask();$('cancelTask').onclick=()=>$('taskDialog').close();$('deleteTask').onclick=deleteTask;$('taskForm').onsubmit=saveTask;$('messageForm').onsubmit=sendMessage;$('taskSearch').oninput=renderTasks;$('menuButton').onclick=()=>$('sidebar').classList.toggle('open');$('signOut').onclick=async()=>{await db.auth.signOut();location.replace('/auth.html?next=%2Fworkspace%2F')};$('settingsNav').onclick=event=>{event.preventDefault();openSettings()};$('cancelSettings').onclick=()=>$('settingsDialog').close();$('settingsForm').onsubmit=saveSettings;$('removeLogo').onclick=()=>{pendingLogo='';showLogo('')};$('businessLogo').onchange=async event=>{const file=event.target.files?.[0];if(!file)return;try{pendingLogo=await resizeLogo(file);showLogo(pendingLogo)}catch(error){$('settingsMessage').className='form-error';$('settingsMessage').textContent=error.message}};
+      $('workspaceSwitch').onchange=event=>{localStorage.setItem(ACTIVE_KEY,event.target.value);location.reload()};
+      document.querySelectorAll('.column').forEach(column=>{column.addEventListener('dragover',event=>{event.preventDefault();column.classList.add('drag-over')});column.addEventListener('dragleave',()=>column.classList.remove('drag-over'));column.addEventListener('drop',event=>{event.preventDefault();column.classList.remove('drag-over');moveTask(event.dataTransfer.getData('text/plain'),column.dataset.status)});});
+    }
+
+    async function boot(){
+      try{await ensureSession();await loadWorkspace();renderShell();bind();await Promise.all([loadMembers(),loadTasks(),loadMessages()]);subscribe();$('loading').classList.add('hidden');$('app').classList.remove('hidden');if(location.hash==='#settings')openSettings();}
+      catch(error){$('loading').innerHTML=`<div class="setup"><strong>Workspace could not open.</strong><br>${esc(error?.message||error)}</div>`;}
+    }
+    void boot();
+  </script>
+</body>
+</html>

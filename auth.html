@@ -48,8 +48,8 @@
     const authClient=window.supabase.createClient('https://krbedficypujbukslgif.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyYmVkZmljeXB1amJ1a3NsZ2lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NjM2MzgsImV4cCI6MjEwMDEzOTYzOH0.BSHiK0GMqFMk_Go0vmWuQ4FuIf4p0MPlUYAK5cINGwU',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const PUBLIC_APP_ORIGIN='https://costudio-bice.vercel.app';
     const DEMO_EMAIL='demo@ginani.net',DEMO_PASSWORD='costudio-demo2026';
-    const params=new URLSearchParams(location.search);let mode=params.get('mode')||'login';
-    const rawNext=params.get('next')||'/';const next=rawNext.startsWith('/')&&!rawNext.startsWith('//')?rawNext:'/';
+    const params=new URLSearchParams(location.search);let mode=params.get('mode')||'login';const autoDemo=params.get('demo')==='1';
+    const rawNext=params.get('next')||'/workspace/';const next=rawNext.startsWith('/')&&!rawNext.startsWith('//')?rawNext:'/workspace/';
     const el=id=>document.getElementById(id);
     function message(text,error=false){const box=el('status');box.textContent=text;box.className='status'+(error?' error':'');box.style.display=text?'block':'none';}
     function setMode(nextMode){mode=nextMode;message('');const register=mode==='register',forgot=mode==='forgot',reset=mode==='reset';el('title').textContent=register?'Create your business account':forgot?'Reset your password':reset?'Choose a new password':'Sign in';el('lead').textContent=register?'Set up one account for every Costudio workspace.':forgot?'We will email you a secure password-reset link.':reset?'Enter a new password for your Costudio account.':'One account for your complete business workspace.';el('businessField').classList.toggle('hidden',!register);el('emailField').classList.toggle('hidden',reset);el('confirmField').classList.toggle('hidden',!(register||reset));el('passwordField').classList.toggle('hidden',forgot);el('password').autocomplete=register||reset?'new-password':'current-password';el('businessName').required=register;el('confirmPassword').required=register||reset;el('email').required=!reset;el('password').required=!forgot;el('submitButton').textContent=register?'Create account':forgot?'Send reset link':reset?'Update password':'Sign in';el('standardLinks').classList.toggle('hidden',register||reset);el('registerLinks').classList.toggle('hidden',!register);el('demoAccess').classList.toggle('hidden',mode!=='login');}
@@ -63,7 +63,7 @@
       if(mode==='reset'){const {error}=await authClient.auth.updateUser({password});if(error)throw error;message('Password updated. Opening Costudio…');setTimeout(()=>location.replace(next),700);return;}
       const {error}=await authClient.auth.signInWithPassword({email,password});if(error)throw error;location.replace(next);
     }catch(error){message(error?.message||'Authentication failed.',true);}finally{button.disabled=false;}});
-    async function boot(){setMode(mode);const {data}=await authClient.auth.getSession();if(data.session?.user?.is_anonymous){await authClient.auth.signOut();return;}if(data.session&&mode!=='reset')location.replace(next);}
+    async function boot(){setMode(mode);const {data}=await authClient.auth.getSession();if(data.session?.user?.is_anonymous){await authClient.auth.signOut();}else if(data.session&&mode!=='reset'){location.replace(next);return;}if(autoDemo&&mode==='login')useDemoAccount();}
     void boot();
   </script>
 </body>

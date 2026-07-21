@@ -171,7 +171,7 @@ const DesignerProfileForm: React.FC<Props> = ({ onSubmit, initialProfile }) => {
             <div className="font-medium">Business Details</div>
             <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
               Business identity, contact details, logo, currency, and units are inherited from Workspace Settings.
-              <a className="ml-1 underline font-medium text-foreground" href="../#settings">Manage workspace settings</a>
+              <a className="ml-1 underline font-medium text-foreground" href="../workspace/#settings">Manage workspace settings</a>
               <div className="mt-3 grid gap-1 text-xs">
                 <span>{workspaceDefaults?.email || 'No business email set'}</span>
                 <span>{workspaceDefaults?.phone || 'No business phone set'}</span>
