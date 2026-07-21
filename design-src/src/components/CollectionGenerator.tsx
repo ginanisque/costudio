@@ -23,6 +23,21 @@ interface CollectionGeneratorProps {
 
 const fileId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+function createPaletteReference(colors: string[]): string | undefined {
+  if (!colors.length) return undefined;
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 256;
+  const context = canvas.getContext('2d');
+  if (!context) return undefined;
+  const width = canvas.width / colors.length;
+  colors.forEach((color, index) => {
+    context.fillStyle = color;
+    context.fillRect(Math.floor(index * width), 0, Math.ceil(width), canvas.height);
+  });
+  return canvas.toDataURL('image/png');
+}
+
 async function prepareImage(file: File): Promise<Reference> {
   if (!file.type.startsWith('image/')) throw new Error(`${file.name} is not an image.`);
   if (file.size > 12 * 1024 * 1024) throw new Error(`${file.name} is larger than 12 MB.`);
@@ -120,7 +135,10 @@ export default function CollectionGenerator({ initialDescription, pieceCount, on
       const count = Math.max(1, Math.min(12, pieceCount));
       const fabricImages = [...swatches.map(item => item.dataUrl), ...fabrics.map(fabric => fabric.image).filter((value): value is string => Boolean(value))].slice(0, 6);
       const styleImages = concepts.map(item => item.dataUrl).slice(0, 4);
-      const modelImages = models.map(model => model.image).filter((value): value is string => Boolean(value)).slice(0, 2);
+      const selectedModels = models.filter(model => Boolean(model.image));
+      const modelImages = selectedModels.map(model => model.image).filter((value): value is string => Boolean(value)).slice(0, 8);
+      const paletteReference = createPaletteReference(palette);
+      const paletteImages = paletteReference ? [paletteReference] : [];
       const brief = [
         direction.trim(),
         palette.length ? `Required palette: ${palette.join(', ')}.` : '',
@@ -129,12 +147,28 @@ export default function CollectionGenerator({ initialDescription, pieceCount, on
         'Create distinct but cohesive full-length fashion looks. Preserve the designer’s style language and show realistic construction and fabric drape.',
       ].filter(Boolean).join('\n');
       setProgress('Developing the collection pieces…');
-      const prompts = await suggestPrompts(brief, [], count, { fabricImages, styleImages, modelImages });
+      const prompts = await suggestPrompts(brief, [], count, { fabricImages, styleImages, paletteImages, modelImages });
       if (!prompts.length) throw new Error('The AI did not return any collection pieces.');
       const pieces: GeneratedPiece[] = [];
       for (let index = 0; index < prompts.length; index += 1) {
         setProgress(`Rendering piece ${index + 1} of ${prompts.length}…`);
-        const result = await generateImageViaProxy({ prompt: prompts[index], size, fabricImages, styleImages, modelImages });
+        const namedModel = selectedModels.find(model => model.name && prompts[index].toLowerCase().includes(model.name.toLowerCase()));
+        const assignedModel = namedModel || (selectedModels.length ? selectedModels[index % selectedModels.length] : undefined);
+        const identityInstruction = assignedModel
+          ? `\nMODEL IDENTITY LOCK: Use the attached model reference as ${assignedModel.name || 'the selected model'}. Preserve the same recognizable person, face, skin tone, hair and body proportions. Change only the garment and styling.`
+          : '';
+        const paletteInstruction = palette.length
+          ? `\nPALETTE LOCK: Garment colors must come from this exact palette: ${palette.join(', ')}. Treat the attached palette strip as mandatory.`
+          : '';
+        const renderPrompt = `${prompts[index]}${identityInstruction}${paletteInstruction}`;
+        const result = await generateImageViaProxy({
+          prompt: renderPrompt,
+          size,
+          fabricImages,
+          styleImages,
+          paletteImages,
+          modelImages: assignedModel?.image ? [assignedModel.image] : [],
+        });
         pieces.push({ prompt: prompts[index], imageUrl: `data:image/png;base64,${result.b64}`, title: `Look ${index + 1}` });
       }
       onGenerated(pieces);

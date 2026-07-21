@@ -173,15 +173,22 @@ const ENTITY_TYPES: Record<string, string> = {
 };
 
 function serverSave(type: string, entity: unknown) {
+  void serverSaveConfirmed(type, entity).catch(error => {
+    console.error(`Could not persist ${type} record`, error);
+  });
+}
+
+async function serverSaveConfirmed(type: string, entity: unknown): Promise<void> {
   if (!supabase || !_businessId) return;
   const clientId = (entity as { id?: string }).id;
   if (!clientId) return;
-  void supabase.from('design_records').upsert({
+  const { error } = await supabase.from('design_records').upsert({
     business_id: _businessId,
     entity_type: ENTITY_TYPES[type],
     client_id: clientId,
     data: entity,
   }, { onConflict: 'business_id,entity_type,client_id' });
+  if (error) throw error;
 }
 
 function serverDelete(type: string, clientId: string) {
@@ -278,6 +285,21 @@ export function saveCollection(c: StoredCollection) {
     const idx = cache.collections.findIndex(x => x.id === id);
     if (idx >= 0) cache.collections[idx] = c; else cache.collections.unshift(c);
     serverSave('collections', c);
+  } else {
+    const list = listCollections();
+    const idx = list.findIndex(x => x.id === id);
+    if (idx >= 0) list[idx] = c; else list.unshift(c);
+    writeArray(C_KEY, list);
+  }
+}
+
+export async function saveCollectionPersisted(c: StoredCollection): Promise<void> {
+  const id = c?.id || computeCollectionId(c?.data);
+  c.id = id;
+  if (cache.ready) {
+    const idx = cache.collections.findIndex(x => x.id === id);
+    if (idx >= 0) cache.collections[idx] = c; else cache.collections.unshift(c);
+    await serverSaveConfirmed('collections', c);
   } else {
     const list = listCollections();
     const idx = list.findIndex(x => x.id === id);
@@ -470,6 +492,23 @@ export function savePiece(p: StoredPiece) {
     if (idx >= 0) cache.pieces[idx] = { ...cache.pieces[idx], ...p, updatedAt: new Date().toISOString() };
     else cache.pieces.unshift({ ...p });
     serverSave('pieces', cache.pieces[idx >= 0 ? idx : 0]);
+  } else {
+    const list = listPieces();
+    const idx = list.findIndex(x => x.id === p.id);
+    if (idx >= 0) list[idx] = { ...list[idx], ...p, updatedAt: new Date().toISOString() };
+    else list.unshift({ ...p });
+    writeArray(PIECE_KEY, list);
+  }
+}
+
+export async function savePiecePersisted(p: StoredPiece): Promise<void> {
+  let stored = p;
+  if (cache.ready) {
+    const idx = cache.pieces.findIndex(x => x.id === p.id);
+    if (idx >= 0) cache.pieces[idx] = { ...cache.pieces[idx], ...p, updatedAt: new Date().toISOString() };
+    else cache.pieces.unshift({ ...p });
+    stored = cache.pieces[idx >= 0 ? idx : 0];
+    await serverSaveConfirmed('pieces', stored);
   } else {
     const list = listPieces();
     const idx = list.findIndex(x => x.id === p.id);

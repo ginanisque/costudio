@@ -158,6 +158,7 @@ async function suggestPrompts(request: Request, cors: HeadersInit) {
     images?: string[];
     fabricImages?: string[];
     styleImages?: string[];
+    paletteImages?: string[];
     modelImages?: string[];
     count?: number;
   };
@@ -173,9 +174,10 @@ async function suggestPrompts(request: Request, cors: HeadersInit) {
     for (const imageUrl of sources.slice(0, limit)) content.push({ type: 'input_image', image_url: imageUrl, detail: 'high' });
   };
   addReferences('Fabric swatches and saved materials. Use their visible texture, weight, finish and drape:', body.fabricImages || [], 6);
-  const hasTypedReferences = Boolean(body.fabricImages?.length || body.styleImages?.length || body.modelImages?.length);
+  const hasTypedReferences = Boolean(body.fabricImages?.length || body.styleImages?.length || body.paletteImages?.length || body.modelImages?.length);
   addReferences('The designer’s sketches, moodboards and previous style concepts. Preserve this design language without copying a single piece verbatim:', [...(body.styleImages || []), ...(hasTypedReferences ? [] : (body.images || []))], 4);
-  addReferences('Selected model references. Use them as casting and styling guidance:', body.modelImages || [], 2);
+  addReferences('Mandatory collection palette. Every garment must use only or predominantly these exact visible colors:', body.paletteImages || [], 1);
+  addReferences('Selected model references. Assign these named people across the collection; preserve their recognizable identity, face, skin tone, hair and body proportions:', body.modelImages || [], 8);
   const result = await openAi('responses', {
     model: TEXT_MODEL,
     instructions: 'You are a fashion art director and precise visual prompt writer.',
@@ -202,16 +204,18 @@ async function generateImage(request: Request, cors: HeadersInit) {
     size?: string;
     fabricImages?: string[];
     styleImages?: string[];
+    paletteImages?: string[];
     modelImages?: string[];
   };
   if (!body.prompt || body.prompt.length < 3) return json({ error: 'A prompt is required.' }, 400, cors);
   const size = body.size === '1024x1024' ? body.size : '1024x1024';
   const fabricImages = (body.fabricImages || []).slice(0, 6);
   const styleImages = (body.styleImages || []).slice(0, 4);
-  const modelImages = (body.modelImages || []).slice(0, 2);
-  const sources = [...fabricImages, ...styleImages, ...modelImages];
+  const paletteImages = (body.paletteImages || []).slice(0, 1);
+  const modelImages = (body.modelImages || []).slice(0, 1);
+  const sources = [...fabricImages, ...styleImages, ...paletteImages, ...modelImages];
   const referenceGuide = sources.length
-    ? `\n\nUse the attached references in this order: ${fabricImages.length} fabric/material image(s), ${styleImages.length} designer sketch/style image(s), and ${modelImages.length} model/casting image(s). Create a new original garment image rather than a collage. Preserve material appearance and the designer's visual language.`
+    ? `\n\nUse the attached references in this order: ${fabricImages.length} fabric/material image(s), ${styleImages.length} designer sketch/style image(s), ${paletteImages.length} mandatory palette strip(s), and ${modelImages.length} model identity image(s). Create a new original garment image rather than a collage. Preserve material appearance and the designer's visual language. The palette is a color constraint, not general inspiration. When a model image is attached, preserve that same recognizable person's identity, face, skin tone, hair, and body proportions; change only clothing and styling.`
     : '';
   const result = sources.length
     ? await openAiImageEdit(`${body.prompt}${referenceGuide}`, sources, size)

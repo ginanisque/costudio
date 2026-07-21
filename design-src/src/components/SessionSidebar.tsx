@@ -76,7 +76,7 @@ export default function SessionSidebar({
     } catch {
       // ignore
     }
-  }, [designer, collection]);
+  }, [designer, collection, generatedTitle, generatedDescription, imagesCount]);
 
   // Poll unread + participants/typing using current room context
   useEffect(() => {

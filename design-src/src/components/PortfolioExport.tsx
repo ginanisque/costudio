@@ -16,7 +16,7 @@ export type ExportImage = { src: string; caption?: string; id?: string };
 
 type DesignerInfo = { name?: string; role?: string; bio?: string; address?: string; website?: string; email?: string; phone?: string; instagram?: string; twitter?: string; tiktok?: string };
 
-export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: DesignerInfo }> = ({ images = [], designer }) => {
+export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: DesignerInfo; currentCollectionId?: string }> = ({ images = [], designer, currentCollectionId }) => {
   const [portfolioData, setPortfolioData] = useState({
     title: '',
     description: '',
@@ -27,7 +27,13 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
   });
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [collections, setCollections] = useState(() => listCollections());
-  useEffect(() => { setCollections(listCollections()); }, []);
+  useEffect(() => {
+    const refreshed = listCollections();
+    setCollections(refreshed);
+    if (currentCollectionId && refreshed.some(collection => collection.id === currentCollectionId)) {
+      setSelected(previous => ({ ...previous, [currentCollectionId]: true }));
+    }
+  }, [currentCollectionId, images.length]);
   const selectedCollections = useMemo(() => collections.filter(c => selected[c.id]), [collections, selected]);
   const [includeImages, setIncludeImages] = useState(true);
   const [layoutByCollection, setLayoutByCollection] = useState<Record<string, 'grid' | 'hero'>>({});
@@ -218,6 +224,12 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
     const palettes = listPalettes();
     const fabrics = listFabrics();
     const promptSets = listPromptSets();
+    const exportedImages = includeImages ? images.map((image, index) => ({
+      id: image.id || `look-${index + 1}`,
+      caption: image.caption || '',
+      file: `images/look-${String(index + 1).padStart(2, '0')}.png`,
+      src: image.src,
+    })) : [];
 
     const manifest = {
       portfolio: {
@@ -238,6 +250,7 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
         twitter: designer.twitter || '',
         tiktok: designer.tiktok || '',
       } : null,
+      images: exportedImages.map(({ id, caption, file }) => ({ id, caption, file })),
       collections: coll.map((c) => {
         const pal = c.paletteId ? palettes.find(p => p.id === c.paletteId) : undefined;
         const fabs = (c.fabricIds || []).map(fid => fabrics.find(f => f.id === fid)).filter(Boolean);
@@ -316,6 +329,17 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
     const zip = new JSZip();
     zip.file('manifest.json', JSON.stringify(manifest, null, 2));
     zip.file('collections.csv', collectionsCsv);
+    for (const image of exportedImages) {
+      if (image.src.startsWith('data:image')) {
+        const comma = image.src.indexOf(',');
+        if (comma >= 0) zip.file(image.file, image.src.slice(comma + 1), { base64: true });
+      } else if (image.src.startsWith('http')) {
+        try {
+          const response = await fetch(image.src);
+          if (response.ok) zip.file(image.file, await response.blob());
+        } catch { /* the catalogue still retains the source URL */ }
+      }
+    }
     // per-collection CSVs
     manifest.collections.forEach((c) => {
       const base = c.title || c.id;
@@ -482,7 +506,7 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
                 <div className="flex justify-end">
                   <button className="text-sm underline" onClick={()=> {
                     try {
-                      const id = localStorage.getItem('fashionAI.currentCollectionId') || '';
+                      const id = currentCollectionId || localStorage.getItem('fashionAI.currentCollectionId') || '';
                       if (id) setSelected(prev => ({ ...prev, [id]: true }));
                     } catch { /* ignore */ }
                   }}>Select current collection</button>

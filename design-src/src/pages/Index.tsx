@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ZipExportButton from '@/components/ZipExportButton';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { generateCollectionCopy, generateDesignerProfile } from '@/utils/api';
-import { saveCollection, saveDesigner, computeCollectionId, computeDesignerId, listDesigners, listCollections, listPalettes, listFabrics, savePalette, saveFabric, updateCollection, computePaletteId, computeFabricId, nextPieceSeq, computePieceId, savePiece, updatePiece, addToInbox, addMessage, setPeerSeen, setTyping } from '@/utils/storage';
+import { saveCollection, saveCollectionPersisted, saveDesigner, computeCollectionId, computeDesignerId, listDesigners, listCollections, listPalettes, listFabrics, savePalette, saveFabric, updateCollection, computePaletteId, computeFabricId, nextPieceSeq, computePieceId, savePiece, savePiecePersisted, listPiecesByCollection, updatePiece, addToInbox, addMessage, setPeerSeen, setTyping } from '@/utils/storage';
 import type { ImageItem } from '@/types';
 import { broadcast, getCurrentCollab } from '@/utils/collab';
 import { downloadCollectionZip } from '@/utils/zip';
@@ -175,6 +175,29 @@ const Index = () => {
       localStorage.setItem(activeDesignerKey, selected.id);
     } catch { /* a profile can still be selected manually */ }
   }, [activeDesignerKey]);
+
+  React.useEffect(() => {
+    try {
+      const collections = listCollections();
+      if (!collections.length) return;
+      const preferredId = localStorage.getItem('fashionAI.currentCollectionId');
+      const selected = collections.find(item => item.id === preferredId)
+        || [...collections].sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''))[0];
+      if (!selected?.data) return;
+      setCollection(selected.data as unknown as CollectionData);
+      setGeneratedTitle(selected.title || '');
+      setGeneratedDescription(selected.description || '');
+      setImages(listPiecesByCollection(selected.id).map(piece => ({
+        id: piece.id,
+        prompt: piece.prompt,
+        title: `Look ${piece.seq}`,
+        description: piece.prompt,
+        imageUrl: piece.imageUrl || '',
+        selected: false,
+      })).filter(piece => Boolean(piece.imageUrl)));
+      localStorage.setItem('fashionAI.currentCollectionId', selected.id);
+    } catch { /* the user can still start a new collection */ }
+  }, []);
   const collectionId = collection ? computeCollectionId(collection) : '';
   const attached = React.useMemo(() => {
     if (!collection) return { palette: undefined as string[] | undefined, fabrics: [] as { name?: string }[], models: [] as typeof modelsCatalog };
@@ -327,17 +350,38 @@ const Index = () => {
     });
   };
 
-  const handleGeneratedCollection = (pieces: Array<{ prompt: string; imageUrl: string; title: string }>) => {
+  const handleGeneratedCollection = async (pieces: Array<{ prompt: string; imageUrl: string; title: string }>) => {
+    const existingCollection = listCollections().find(item => item.id === collectionId);
+    const collectionRecord = collection ? {
+      ...existingCollection,
+      id: collectionId,
+      data: collection,
+      title: generatedTitle || collection.name,
+      description: generatedDescription || collection.inspiration,
+      prompts: pieces.map(piece => piece.prompt),
+      createdAt: existingCollection?.createdAt || new Date().toISOString(),
+    } : null;
+    const persistence: Promise<void>[] = [];
+    if (collectionRecord) {
+      persistence.push(saveCollectionPersisted(collectionRecord));
+      try { localStorage.setItem('fashionAI.currentCollectionId', collectionId); } catch { /* ignore */ }
+    }
     const created = pieces.map(piece => {
       const id = crypto.randomUUID();
-      try {
-        const seq = nextPieceSeq();
-        savePiece({ id, seq, collectionId, prompt: piece.prompt, imageUrl: piece.imageUrl, createdAt: new Date().toISOString() });
-      } catch { /* keep the generated piece visible even if persistence fails */ }
+      const seq = nextPieceSeq();
+      persistence.push(savePiecePersisted({ id, seq, collectionId, prompt: piece.prompt, imageUrl: piece.imageUrl, createdAt: new Date().toISOString() }));
       return { id, prompt: piece.prompt, title: piece.title, description: piece.prompt, imageUrl: piece.imageUrl, selected: false };
     });
     setImages(previous => [...previous, ...created]);
     setActiveTab('gallery');
+    const results = await Promise.allSettled(persistence);
+    const failures = results.filter(result => result.status === 'rejected');
+    if (failures.length) {
+      console.error('Collection persistence failures', failures);
+      toast({ title: 'Images ready, but saving was incomplete', description: 'Keep this page open and try Save Collection again before leaving.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Collection saved', description: `${created.length} generated looks are saved and ready for Export.` });
+    }
   };
 
   const handleImageSelect = (id: string) => {
@@ -793,6 +837,7 @@ const Index = () => {
             </div>
             <PortfolioExport 
               images={images.filter(i=> !!i.imageUrl).map(i=> ({ src: i.imageUrl, caption: i.prompt, id: i.id }))}
+              currentCollectionId={collectionId}
               designer={{ 
                 name: designerProfile?.name, 
                 bio: polishedBio,

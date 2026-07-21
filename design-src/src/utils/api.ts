@@ -19,6 +19,7 @@ async function apiFetch(path: string, init: RequestInit = {}) {
 export type CollectionReferences = {
   fabricImages?: string[];
   styleImages?: string[];
+  paletteImages?: string[];
   modelImages?: string[];
 };
 
@@ -118,7 +119,7 @@ export async function suggestPrompts(
   return retry(async () => {
     const legacyImages = images.length
       ? images
-      : [...(references.fabricImages || []), ...(references.styleImages || []), ...(references.modelImages || [])].slice(0, 4);
+      : [...(references.fabricImages || []), ...(references.styleImages || []), ...(references.paletteImages || []), ...(references.modelImages || [])].slice(0, 4);
     const r = await apiFetch("/api/suggest-prompts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
