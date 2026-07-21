@@ -43,7 +43,7 @@ export interface SessionSidebarProps {
   polishedBio?: string;
   onSaveDesigner?: () => void;
   onSaveCollection?: () => void;
-  onLoadDesigner?: (profile: DesignerProfile) => void;
+  onLoadDesigner?: (profile: DesignerProfile, polishedProfile?: string) => void;
   onLoadCollection?: (data: CollectionData, title?: string, description?: string) => void;
   onNavigate?: (tab: string) => void;
   onOpenMessages?: () => void;
@@ -183,7 +183,7 @@ export default function SessionSidebar({
             <button
               key={d.id}
               className="w-full text-left p-2 rounded hover:bg-muted"
-              onClick={() => d.profile && onLoadDesigner?.(d.profile as DesignerProfile)}
+              onClick={() => d.profile && onLoadDesigner?.(d.profile as DesignerProfile, d.polishedProfile)}
               title={d.polishedProfile || ''}
             >
               <div className="font-medium">{d.name || 'Unnamed'}</div>

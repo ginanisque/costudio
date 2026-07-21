@@ -24,13 +24,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ZipExportButton from '@/components/ZipExportButton';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { generateCollectionCopy, generateDesignerProfile } from '@/utils/api';
-import { saveCollection, saveDesigner, computeCollectionId, computeDesignerId, listCollections, listPalettes, listFabrics, savePalette, saveFabric, updateCollection, computePaletteId, computeFabricId, nextPieceSeq, computePieceId, savePiece, updatePiece, addToInbox, addMessage, setPeerSeen, setTyping } from '@/utils/storage';
+import { saveCollection, saveDesigner, computeCollectionId, computeDesignerId, listDesigners, listCollections, listPalettes, listFabrics, savePalette, saveFabric, updateCollection, computePaletteId, computeFabricId, nextPieceSeq, computePieceId, savePiece, updatePiece, addToInbox, addMessage, setPeerSeen, setTyping } from '@/utils/storage';
 import type { ImageItem } from '@/types';
 import { broadcast, getCurrentCollab } from '@/utils/collab';
 import { downloadCollectionZip } from '@/utils/zip';
 import { modelsCatalog } from '@/config/models';
 import { toast } from '@/components/ui/use-toast';
 import { continueToCosting } from '@/utils/costingHandoff';
+import { getUser } from '@/utils/auth';
 
 interface DesignerProfile {
   name: string;
@@ -150,6 +151,21 @@ const Index = () => {
   // pieceCount already declared above; remove duplicate
   const [follow] = useLocalStorage<boolean>('collab.follow', false);
   const [pieceCount, setPieceCount] = useLocalStorage<number>('fashionAI.pieceCount', 8);
+  const activeDesignerKey = `fashionAI.activeDesigner.${getUser()?.businessId || 'local'}`;
+
+  React.useEffect(() => {
+    try {
+      const designers = listDesigners();
+      if (!designers.length) return;
+      const preferredId = localStorage.getItem(activeDesignerKey);
+      const selected = designers.find(item => item.id === preferredId)
+        || [...designers].sort((left, right) => Date.parse(right.createdAt || '') - Date.parse(left.createdAt || ''))[0];
+      if (!selected?.profile) return;
+      setDesignerProfile(selected.profile as unknown as DesignerProfile);
+      setPolishedBio(selected.polishedProfile || '');
+      localStorage.setItem(activeDesignerKey, selected.id);
+    } catch { /* a profile can still be selected manually */ }
+  }, [activeDesignerKey]);
   const collectionId = collection ? computeCollectionId(collection) : '';
   const attached = React.useMemo(() => {
     if (!collection) return { palette: undefined as string[] | undefined, fabrics: [] as { name?: string }[], models: [] as typeof modelsCatalog };
@@ -200,12 +216,18 @@ const Index = () => {
 
   const handleProfileSubmit = (profile: DesignerProfile) => {
     setDesignerProfile(profile);
+    const designerId = computeDesignerId(profile);
+    const createdAt = new Date().toISOString();
+    try {
+      saveDesigner({ id: designerId, profile, createdAt, name: profile.name });
+      localStorage.setItem(activeDesignerKey, designerId);
+    } catch { /* the in-session profile remains available */ }
     // Generate polished profile copy via AI
     generateDesignerProfile(profile)
       .then(({ profile: polished }) => {
         setPolishedBio(polished);
         try {
-          saveDesigner({ id: computeDesignerId(profile), profile, polishedProfile: polished, createdAt: new Date().toISOString(), name: profile.name });
+          saveDesigner({ id: designerId, profile, polishedProfile: polished, createdAt, name: profile.name });
         } catch { /* ignore */ }
       })
       .catch(() => {
@@ -216,7 +238,9 @@ const Index = () => {
           profile.background && profile.background,
           profile.inspirations && `Inspired by ${profile.inspirations.toLowerCase()}.`,
         ].filter(Boolean);
-        setPolishedBio(parts.join('. ') + (parts.length ? '' : ''));
+        const fallbackBio = parts.join('. ') + (parts.length ? '' : '');
+        setPolishedBio(fallbackBio);
+        try { saveDesigner({ id: designerId, profile, polishedProfile: fallbackBio, createdAt, name: profile.name }); } catch { /* ignore */ }
       })
       .finally(() => setActiveTab('collection'));
   };
@@ -395,7 +419,10 @@ const Index = () => {
             onSaveDesigner={() => {
               if (!designerProfile) return;
               try {
-                saveDesigner({ id: computeDesignerId(designerProfile), profile: designerProfile, createdAt: new Date().toISOString(), name: designerProfile.name });
+                const id = computeDesignerId(designerProfile);
+                saveDesigner({ id, profile: designerProfile, polishedProfile: polishedBio || undefined, createdAt: new Date().toISOString(), name: designerProfile.name });
+                localStorage.setItem(activeDesignerKey, id);
+                toast({ title: 'Designer profile saved', description: 'It will be restored when you return to this workspace.' });
               } catch { /* ignore */ }
             }}
             onSaveCollection={() => {
@@ -406,8 +433,10 @@ const Index = () => {
                 try { localStorage.setItem('fashionAI.currentCollectionId', id); } catch { /* ignore */ }
               } catch { /* ignore */ }
             }}
-            onLoadDesigner={(p)=> {
+            onLoadDesigner={(p, polished)=> {
               setDesignerProfile(p);
+              setPolishedBio(polished || '');
+              try { localStorage.setItem(activeDesignerKey, computeDesignerId(p)); } catch { /* ignore */ }
               // Jump to Profile tab so fields are editable
               setActiveTab('profile');
             }}
@@ -637,7 +666,10 @@ const Index = () => {
           <TabsContent value="generate">
             <div className="space-y-6">
               <CollectionGenerator
-                initialDescription={generatedDescription || collection?.inspiration || ''}
+                initialDescription={[
+                  generatedDescription || collection?.inspiration || '',
+                  designerProfile ? `Designer identity: ${designerProfile.style || ''}. Inspirations: ${designerProfile.inspirations || ''}. Specialties: ${designerProfile.specialties || ''}.` : '',
+                ].filter(Boolean).join('\n\n')}
                 pieceCount={pieceCount}
                 onPieceCountChange={setPieceCount}
                 palette={attached.palette || []}
