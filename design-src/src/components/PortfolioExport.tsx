@@ -294,7 +294,7 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
     ].join('\n');
 
     // Build printable HTML catalogue
-    const css = `@page { size: A4; margin: 14mm; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: system-ui, sans-serif; } h1,h2 { margin: 0 0 8px; } .page { page-break-after: always; } .palette { display:flex; gap:6px; margin:6px 0; } .sw { width:16px; height:16px; border:1px solid #999; border-radius:3px; } .section { margin: 10px 0 16px; } .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:10mm; } .img { width:100%; height:auto; border-radius:8px; } .caption { font-size: 12px; color:#555; margin-top:4px; } .meta { font-size: 12px; color:#444; } .chip { display:inline-block; border:1px solid #ccc; padding:2px 6px; border-radius:12px; font-size:12px; margin-right:4px; } .hero { position: relative; } .hero-title { position:absolute; bottom:12px; left:12px; background: rgba(255,255,255,.8); padding:6px 10px; border-radius:8px; font-weight:600; } .logo { position:absolute; top:12px; right:12px; max-width:120px; max-height:60px; }`;
+    const css = `@page { size: A4 portrait; margin: 10mm; } html,body { margin:0; padding:0; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: system-ui, sans-serif; font-size:11pt; } h1,h2 { margin: 0 0 8px; } .page { width:190mm; height:277mm; box-sizing:border-box; overflow:hidden; break-after:page; page-break-after:always; position:relative; } .page:last-child { break-after:auto; page-break-after:auto; } .palette { display:flex; gap:6px; margin:6px 0; } .sw { width:16px; height:16px; border:1px solid #999; border-radius:3px; } .section { margin: 10px 0 16px; } .grid { height:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:6mm; } .grid>div { min-width:0; min-height:0; display:flex; flex-direction:column; } .grid .img { width:100%; height:118mm; object-fit:contain; border-radius:6px; } .img { display:block; max-width:100%; height:auto; object-fit:contain; border-radius:6px; } .hero .img { width:100%; height:277mm; object-fit:contain; } .caption { font-size:10pt; line-height:1.3; color:#555; margin-top:3px; } .meta { font-size:10pt; line-height:1.45; color:#444; } .chip { display:inline-block; border:1px solid #ccc; padding:2px 6px; border-radius:12px; font-size:10pt; margin-right:4px; } .hero { position:relative; } .hero-title { position:absolute; bottom:12px; left:12px; background:rgba(255,255,255,.84); padding:6px 10px; border-radius:8px; font-weight:600; } .logo { position:absolute; top:12px; right:12px; max-width:105px; max-height:52px; }`;
     const renderCaption = (img: ExportImage, i: number, collectionTitle: string) => {
       const ctx: Record<string,string> = {
         index: String(i + 1),
@@ -383,21 +383,26 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
     if (!win) return;
     const title = portfolioData.title || selectedCollections[0].title || selectedCollections[0].data?.name || 'Catalogue';
     const css = `
-      @page { size: A4; margin: 14mm; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: system-ui, sans-serif; }
+      @page { size: A4 portrait; margin: 10mm; }
+      html, body { margin:0; padding:0; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: system-ui, sans-serif; font-size:11pt; }
       h1,h2 { margin: 0 0 8px; }
-      .page { page-break-after: always; }
+      .page { width:190mm; height:277mm; box-sizing:border-box; overflow:hidden; break-after:page; page-break-after:always; position:relative; }
+      .page:last-child { break-after:auto; page-break-after:auto; }
       .palette { display:flex; gap:6px; margin:6px 0; }
       .sw { width:16px; height:16px; border:1px solid #999; border-radius:3px; }
       .section { margin: 10px 0 16px; }
-      .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:10mm; }
-      .img { width:100%; height:auto; border-radius:8px; }
-      .caption { font-size: 12px; color:#555; margin-top:4px; }
-      .meta { font-size: 12px; color:#444; }
-      .chip { display:inline-block; border:1px solid #ccc; padding:2px 6px; border-radius:12px; font-size:12px; margin-right:4px; }
+      .grid { height:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:6mm; }
+      .grid > div { min-width:0; min-height:0; display:flex; flex-direction:column; }
+      .grid .img { width:100%; height:118mm; object-fit:contain; border-radius:6px; }
+      .img { display:block; max-width:100%; height:auto; object-fit:contain; border-radius:6px; }
+      .caption { font-size:10pt; line-height:1.3; color:#555; margin-top:3px; }
+      .meta { font-size:10pt; line-height:1.45; color:#444; }
+      .chip { display:inline-block; border:1px solid #ccc; padding:2px 6px; border-radius:12px; font-size:10pt; margin-right:4px; }
       .hero { position: relative; }
+      .hero .img { width:100%; height:277mm; object-fit:contain; }
       .hero-title { position:absolute; bottom:12px; left:12px; background: rgba(255,255,255,.8); padding:6px 10px; border-radius:8px; font-weight:600; }
-      .logo { position:absolute; top:12px; right:12px; max-width:120px; max-height:60px; }
+      .logo { position:absolute; top:12px; right:12px; max-width:105px; max-height:52px; }
     `;
     const html = [`<html><head><title>${title}</title><style>${css}</style></head><body>`];
     html.push(`<div class="page" style="position:relative"><h1>${title}</h1><div class="meta">${portfolioData.description || ''}</div>${brandLogo ? `<img class="logo" src="${brandLogo}"/>` : ''}</div>`);
