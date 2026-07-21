@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Header from './Header';
 import SettingsPortal from './SettingsPortal';
+import { supabase } from '@/lib/supabase';
 
 // Read once — import.meta.env is static after build
 // Production AI calls run in a Supabase Edge Function so the OpenAI key never
@@ -21,7 +22,11 @@ const AppLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
 
   const refreshStatus = useCallback(async () => {
     try {
-      const r = await fetch(apiUrl('/api/status'));
+      const { data } = await supabase!.auth.getSession();
+      const accessToken = data.session?.access_token;
+      const r = await fetch(apiUrl('/api/status'), {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      });
       const text = await r.text();
       let body: { hasKey?: boolean } = {};
       try { body = text ? (JSON.parse(text) as typeof body) : {}; } catch { /* ignore */ }

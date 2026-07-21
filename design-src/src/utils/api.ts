@@ -1,4 +1,5 @@
 import { retry } from "./backoff";
+import { supabase } from "@/lib/supabase";
 
 // Prefer absolute API base if provided (works without dev proxy)
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
@@ -6,13 +7,21 @@ const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/
   || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/costudio-ai` : '');
 const api = (path: string) => `${API_BASE}${path}`;
 
+async function apiFetch(path: string, init: RequestInit = {}) {
+  const { data } = await supabase!.auth.getSession();
+  const accessToken = data.session?.access_token;
+  const headers = new Headers(init.headers);
+  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+  return fetch(api(path), { ...init, headers });
+}
+
 
 export type GeneratePayload = { prompt: string; size?: "256x256" | "512x512" | "1024x1024" };
 
 
 export async function generateImageViaProxy(payload: GeneratePayload): Promise<{ b64: string }> {
 return retry(async () => {
-const r = await fetch(api("/api/generate"), {
+const r = await apiFetch("/api/generate", {
 method: "POST",
 headers: { "Content-Type": "application/json" },
 body: JSON.stringify(payload),
@@ -26,7 +35,7 @@ return body as { b64: string };
 
 export async function generateDesignerProfile(payload: Record<string, unknown>): Promise<{ profile: string }> {
   return retry(async () => {
-    const r = await fetch(api("/api/generate-text"), {
+    const r = await apiFetch("/api/generate-text", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "designer_profile", payload }),
@@ -39,7 +48,7 @@ export async function generateDesignerProfile(payload: Record<string, unknown>):
 
 export async function generateCollectionCopy(payload: Record<string, unknown>): Promise<{ title: string; description: string }> {
   return retry(async () => {
-    const r = await fetch(api("/api/generate-text"), {
+    const r = await apiFetch("/api/generate-text", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type: "collection_description", payload }),
@@ -51,7 +60,7 @@ export async function generateCollectionCopy(payload: Record<string, unknown>): 
 }
 
 export async function generateInspiration(text: string): Promise<{ inspiration: string }> {
-  const r = await fetch(api("/api/generate-text"), {
+  const r = await apiFetch("/api/generate-text", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "inspiration", payload: { text } }),
@@ -65,7 +74,7 @@ export async function generateInspiration(text: string): Promise<{ inspiration: 
 
 export type SocialPack = { tweet: string; instagram: { caption: string; hashtags: string[] }; press_blurb: string; headline: string };
 export async function generateSocialPack(payload: { name?: string; inspiration?: string; palette?: string[] }): Promise<SocialPack> {
-  const r = await fetch(api("/api/generate-text"), {
+  const r = await apiFetch("/api/generate-text", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ type: "social_pack", payload }),
@@ -81,7 +90,7 @@ export async function improveProductContent(payload: {
   collectionName?: string;
   collectionInspiration?: string;
 }): Promise<{ title: string; description: string }> {
-  const r = await fetch(api('/api/generate-text'), {
+  const r = await apiFetch('/api/generate-text', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type: 'product_description', payload }),
@@ -93,7 +102,7 @@ export async function improveProductContent(payload: {
 
 export async function suggestPrompts(description: string, images: string[] = [], count = 8): Promise<string[]> {
   return retry(async () => {
-    const r = await fetch(api("/api/suggest-prompts"), {
+    const r = await apiFetch("/api/suggest-prompts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ description, images, count }),
@@ -112,7 +121,7 @@ export async function suggestPrompts(description: string, images: string[] = [],
 
 export type InspireItem = { title: string; url: string; thumb: string; w?: number; h?: number; license?: string };
 export async function fetchInspirationImages(query: string, count = 12): Promise<InspireItem[]> {
-  const r = await fetch(api(`/api/inspire?q=${encodeURIComponent(query)}&count=${count}`));
+  const r = await apiFetch(`/api/inspire?q=${encodeURIComponent(query)}&count=${count}`);
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body?.error || `HTTP ${r.status}`);
   return (body?.items as InspireItem[]) || [];
