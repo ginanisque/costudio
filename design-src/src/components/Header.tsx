@@ -75,9 +75,6 @@ const Header: React.FC<Props> = ({ onOpenSettings }) => {
               title="Configure API server and check status">
               Settings
             </Button>
-            <Button variant="outline" size="sm">
-              Creator Mode
-            </Button>
             {COMPETITION_DEMO ? (
               <Badge variant="outline" className="hidden md:inline-flex">Competition Demo</Badge>
             ) : (
