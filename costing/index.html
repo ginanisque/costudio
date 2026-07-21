@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/png" href="/assets/costudio-portrait-icon.png">
   <title>Costudio</title>
   <style>
     :root {
@@ -678,7 +679,7 @@
     <span class="cur-badge" id="hCur">$</span>
     <button class="hdr-btn" onclick="window.location.href='../'" aria-label="Back to collaborative workspace">Workspace</button>
     <button class="hdr-btn" onclick="window.location.href='../design/'" aria-label="Open Design Studio">Design Studio</button>
-    <button class="hdr-btn" id="hName" onclick="openProfileModal()" aria-label="Edit profile">Profile</button>
+    <button class="hdr-btn" id="hName" onclick="window.location.href='../#settings'" aria-label="Open shared workspace settings">Settings</button>
     <button class="hdr-btn hdr-btn-signout" onclick="doLogout()" aria-label="Sign out">Sign Out</button>
   </div>
 </header>
@@ -3705,7 +3706,7 @@ function openTemplateModal(id = null) {
   document.getElementById('tmId').value = t?.id || '';
   document.getElementById('tmName').value = t?.name || '';
   document.getElementById('tmCategory').value = t?.category || '';
-  document.getElementById('tmUnit').value = t?.unit || 'in';
+  document.getElementById('tmUnit').value = t?.unit || currentUser?.measurementUnit || 'cm';
   document.getElementById('templateFieldList').innerHTML = '';
   (t?.fields?.length ? t.fields : [{label:'',code:''}]).forEach(f => addTemplateField(f));
   document.getElementById('templateModalOverlay').style.display='flex';
@@ -4138,7 +4139,7 @@ function openClientModal(customerId = null) {
   document.getElementById('mSleeve').value    = m.sleeve    || '';
   document.getElementById('mInseam').value    = m.inseam    || '';
   document.getElementById('mNapeWaist').value = m.napeWaist || '';
-  document.getElementById('mUnit').value      = m.unit      || 'cm';
+  document.getElementById('mUnit').value      = m.unit      || currentUser?.measurementUnit || 'cm';
   document.getElementById('clientModalOverlay').style.display = 'flex';
 }
 function closeClientModal() { document.getElementById('clientModalOverlay').style.display = 'none'; }

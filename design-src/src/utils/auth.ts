@@ -7,6 +7,19 @@ export type AuthUser = {
   email: string;
   businessId: string;
   businessName: string;
+  businessDefaults: {
+    legalName: string;
+    email: string;
+    phone: string;
+    secondPhone: string;
+    website: string;
+    address: string;
+    logo: string;
+    currencyCode: string;
+    currencySymbol: string;
+    materialUnit: 'm' | 'yd';
+    measurementUnit: 'cm' | 'in';
+  };
 };
 
 export type BusinessWorkspace = {
@@ -37,11 +50,14 @@ async function resolveUser(): Promise<AuthUser | null> {
   const membership = memberships.find(item => item.business_id === preferredId) || memberships[0];
   const { data: business } = await supabase
     .from('businesses')
-    .select('name')
+    .select('*')
     .eq('id', membership.business_id)
     .single();
   const accountEmail = account.email || 'demo@costudio.local';
   const businessName = business?.name || account.user_metadata?.business_name || accountEmail.split('@')[0];
+  const address = [business?.address_line_1, business?.address_line_2, business?.city, business?.state_region, business?.postal_code, business?.country_code]
+    .filter(Boolean)
+    .join(', ');
   setBusinessId(membership.business_id);
   return {
     id: account.id,
@@ -49,6 +65,19 @@ async function resolveUser(): Promise<AuthUser | null> {
     name: account.user_metadata?.display_name || businessName,
     businessId: membership.business_id,
     businessName,
+    businessDefaults: {
+      legalName: business?.legal_name || '',
+      email: business?.business_email || accountEmail,
+      phone: business?.phone_primary || '',
+      secondPhone: business?.phone_secondary || '',
+      website: business?.website || '',
+      address,
+      logo: business?.logo_data_url || '',
+      currencyCode: business?.currency_code || 'USD',
+      currencySymbol: business?.currency_symbol || '$',
+      materialUnit: business?.measurement_unit === 'yd' ? 'yd' : 'm',
+      measurementUnit: business?.measurement_record_unit === 'in' ? 'in' : 'cm',
+    },
   };
 }
 

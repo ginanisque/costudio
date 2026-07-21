@@ -26,7 +26,7 @@
   }
 
   function userShape(ctx) {
-    return { id: ctx.auth.id, name: ctx.business.name, email: ctx.auth.email || 'demo@costudio.local', cur: ctx.business.currency_symbol, curCode: ctx.business.currency_code, unit: ctx.business.measurement_unit, lastLogin: ctx.auth.last_sign_in_at };
+    return { id: ctx.auth.id, name: ctx.business.name, email: ctx.auth.email || 'demo@costudio.local', cur: ctx.business.currency_symbol, curCode: ctx.business.currency_code, unit: ctx.business.measurement_unit, measurementUnit: ctx.business.measurement_record_unit || 'cm', businessEmail: ctx.business.business_email || '', phone: ctx.business.phone_primary || '', logo: ctx.business.logo_data_url || '', lastLogin: ctx.auth.last_sign_in_at };
   }
   function productRow(r) { return { id:Number(r.id),name:r.name,cat:r.category,date:dateLabel(r.created_at),cogs:number(r.cogs),pricing:r.pricing,fabrics:r.fabrics||[],trims:r.trims||[],time:r.production_time,rate:number(r.hourly_rate) }; }
   function clientRow(r) { return { id:Number(r.id),name:r.name,email:r.email||'',phone:r.phone||'',measurements:r.measurements||{},preferences:r.preferences||'',notes:r.notes||'',createdAt:r.created_at }; }
@@ -83,9 +83,7 @@
         if (!ctx) return fail('Not authenticated',401);
         if (action === 'supabase_session') return ok({ok:true,csrfToken:'supabase',user:userShape(ctx)});
         if (action === 'update_profile') {
-          const { error } = await client.from('businesses').update({name:body.name,currency_symbol:body.cur,currency_code:body.curCode,measurement_unit:body.unit}).eq('id',ctx.business.id);
-          if (error) return fail(error.message);
-          await client.auth.updateUser({data:{business_name:body.name,display_name:body.name}});const fresh=await context(true);return ok({ok:true,user:userShape(fresh)});
+          return fail('Business defaults are managed in Workspace Settings.', 409);
         }
         if (action === 'change_password') { const signed=await client.auth.signInWithPassword({email:ctx.auth.email,password:body.current});if(signed.error)return fail('Current password is incorrect.',401);const changed=await client.auth.updateUser({password:body.new});return changed.error?fail(changed.error.message):ok({ok:true}); }
       }

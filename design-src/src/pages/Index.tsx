@@ -137,6 +137,15 @@ function applyTrendsToDescription(
   return `${out}${out && additions.length ? ' ' : ''}${additions.join(' ')}`.trim();
 }
 const Index = () => {
+  const account = getUser();
+  const businessProfileDefaults: Partial<DesignerProfile> = {
+    name: account?.businessName || '',
+    address: account?.businessDefaults.address || '',
+    website: account?.businessDefaults.website || '',
+    email: account?.businessDefaults.email || '',
+    phone: account?.businessDefaults.phone || '',
+    logo: account?.businessDefaults.logo || '',
+  };
   const [designerProfile, setDesignerProfile] = useState<DesignerProfile | null>(null);
   const [collection, setCollection] = useState<CollectionData | null>(null);
   const [generatedTitle, setGeneratedTitle] = useState('');
@@ -525,7 +534,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="profile">
-            <DesignerProfileForm initialProfile={designerProfile || undefined} onSubmit={handleProfileSubmit} />
+            <DesignerProfileForm initialProfile={{ ...businessProfileDefaults, ...(designerProfile || {}), address: businessProfileDefaults.address, website: businessProfileDefaults.website, email: businessProfileDefaults.email, phone: businessProfileDefaults.phone, logo: businessProfileDefaults.logo }} onSubmit={handleProfileSubmit} />
             {polishedBio && (
               <Card className="mt-6 max-w-3xl">
                 <CardHeader>
@@ -787,10 +796,10 @@ const Index = () => {
               designer={{ 
                 name: designerProfile?.name, 
                 bio: polishedBio,
-                address: designerProfile?.address,
-                website: designerProfile?.website,
-                email: designerProfile?.email,
-                phone: designerProfile?.phone,
+                address: account?.businessDefaults.address,
+                website: account?.businessDefaults.website,
+                email: account?.businessDefaults.email,
+                phone: account?.businessDefaults.phone,
                 instagram: designerProfile?.instagram,
                 twitter: designerProfile?.twitter,
                 tiktok: designerProfile?.tiktok,

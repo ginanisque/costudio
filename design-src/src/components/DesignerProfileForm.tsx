@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
+import { getUser } from '@/utils/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +32,7 @@ interface Props {
 }
 
 const DesignerProfileForm: React.FC<Props> = ({ onSubmit, initialProfile }) => {
+  const workspaceDefaults = getUser()?.businessDefaults;
   const [profile, setProfile] = useState<DesignerProfile>({
     name: '',
     role: '',
@@ -49,7 +51,6 @@ const DesignerProfileForm: React.FC<Props> = ({ onSubmit, initialProfile }) => {
     tiktok: '',
     logo: ''
   });
-  const [emailError, setEmailError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (initialProfile) {
@@ -61,39 +62,13 @@ const DesignerProfileForm: React.FC<Props> = ({ onSubmit, initialProfile }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(initialProfile || {})]);
 
-  const emailValid = useMemo(() => {
-    if (!profile.email) return true;
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(profile.email.trim());
-  }, [profile.email]);
-
-  const suggestedWebsite = useMemo(() => {
-    const email = (profile.email || '').trim();
-    if (!email || profile.website) return '';
-    const at = email.indexOf('@');
-    if (at === -1) return '';
-    const domain = email.slice(at + 1).toLowerCase();
-    // Skip common mailbox providers
-    const common = ['gmail.com','yahoo.com','outlook.com','hotmail.com','icloud.com','proton.me','protonmail.com','aol.com','live.com'];
-    if (!domain || common.includes(domain)) return '';
-    return `https://${domain}`;
-  }, [profile.email, profile.website]);
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Basic email validation
-    if (profile.email && !emailValid) {
-      setEmailError('Please enter a valid email address.');
-      return;
-    }
     onSubmit(profile);
   };
 
   const handleChange = (field: keyof DesignerProfile, value: string) => {
     setProfile(prev => ({ ...prev, [field]: value }));
-    if (field === 'email') {
-      setEmailError(null);
-    }
   };
 
   return (
@@ -194,53 +169,17 @@ const DesignerProfileForm: React.FC<Props> = ({ onSubmit, initialProfile }) => {
           <div className="pt-2 border-t" />
           <div className="space-y-3">
             <div className="font-medium">Business Details</div>
+            <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              Business identity, contact details, logo, currency, and units are inherited from Workspace Settings.
+              <a className="ml-1 underline font-medium text-foreground" href="../#settings">Manage workspace settings</a>
+              <div className="mt-3 grid gap-1 text-xs">
+                <span>{workspaceDefaults?.email || 'No business email set'}</span>
+                <span>{workspaceDefaults?.phone || 'No business phone set'}</span>
+                <span>{workspaceDefaults?.address || 'No business address set'}</span>
+              </div>
+            </div>
+            <div className="font-medium">Designer social profiles</div>
             <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="address">Address</Label>
-                <Textarea
-                  id="address"
-                  rows={2}
-                  value={profile.address}
-                  onChange={(e) => handleChange('address', e.target.value)}
-                  placeholder="Studio or business address"
-                />
-              </div>
-            <div>
-              <Label htmlFor="website">Website</Label>
-              <Input
-                id="website"
-                value={profile.website}
-                onChange={(e) => handleChange('website', e.target.value)}
-                placeholder="https://yourbrand.com"
-              />
-              {suggestedWebsite && (
-                <div className="text-xs text-muted-foreground mt-1">
-                  Suggestion: <button type="button" className="underline" onClick={() => handleChange('website', suggestedWebsite)}>{suggestedWebsite}</button>
-                </div>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={profile.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                placeholder="you@yourbrand.com"
-              />
-              {!emailValid && (
-                <div className="text-xs text-red-600 mt-1">{emailError || 'Invalid email format.'}</div>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={profile.phone}
-                  onChange={(e) => handleChange('phone', e.target.value)}
-                  placeholder="+1 (555) 123-4567"
-                />
-              </div>
               <div>
                 <Label htmlFor="instagram">Instagram</Label>
                 <Input
@@ -267,21 +206,6 @@ const DesignerProfileForm: React.FC<Props> = ({ onSubmit, initialProfile }) => {
                   onChange={(e) => handleChange('tiktok', e.target.value)}
                   placeholder="@yourbrand"
                 />
-              </div>
-              <div>
-                <Label htmlFor="logo">Logo</Label>
-                <input
-                  id="logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e)=> {
-                    const f = e.target.files?.[0]; if (!f) return;
-                    const r = new FileReader(); r.onload = ()=> handleChange('logo', (r.result as string) || ''); r.readAsDataURL(f);
-                  }}
-                />
-                {profile.logo && (
-                  <div className="mt-2"><img src={profile.logo} alt="Logo" style={{ maxWidth: 160, maxHeight: 80, border: '1px solid #eee', borderRadius: 6 }} /></div>
-                )}
               </div>
             </div>
           </div>
