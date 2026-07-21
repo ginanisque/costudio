@@ -1,3 +1,6 @@
+// Load the Supabase Edge Runtime globals (including Deno) for editor and deploy-time type checking.
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
 const TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') || 'gpt-5.6-terra';
 const APP_ORIGINS = (Deno.env.get('APP_ORIGINS') || '*')
