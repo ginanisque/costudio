@@ -60,45 +60,87 @@ Important architectural decisions—retaining the mature PHP costing backend, se
 
 ## Three-minute demo script
 
-### 0:00–0:20 — Problem and promise
+### Prepare before recording
 
-“Independent fashion designers create in one tool and cost in another. That disconnect leads to repeated data entry, forgotten labour and overhead, and underpriced products. Costudio connects creative development to commercial reality.”
+- Sign in with the demo account and keep the password out of the recording.
+- Save one complete designer profile and one generated collection.
+- Keep one finished costing with realistic materials, labour, overhead, and pricing ready.
+- Keep one client order with a due date and production tasks ready.
+- Upload a small pattern or PDF tech sheet to its production pack.
+- Close unrelated tabs and notifications. Set browser zoom so the full interface is legible.
+- Do not wait for AI generation on camera. Show the saved result, then explain how it was produced.
 
-Show the landing page and its Design/Costing choices.
+### 0:00–0:18 — The problem and promise
 
-### 0:20–0:55 — Collaborative Design Studio
+**On screen:** Open the Costudio landing page, then enter the shared Workspace.
 
-Open an existing sample collection. Show its profile, collection brief, palette, and fabrics. Briefly open the Collaboration card and show the same room in a second window receiving a message or palette.
+**Say:**
 
-Say: “Supabase Realtime lets a small team share creative decisions. GPT-5.6 Terra, called securely through a Supabase Edge Function and the Responses API, develops the collection copy, campaign content, and visual prompts.”
+“Independent fashion businesses often design in one tool, calculate costs in a spreadsheet, keep measurements in a notebook, and send production files through scattered messages. Costudio connects that entire journey—from sketch to customer—in one creative workspace.”
 
-### 0:55–1:20 — GPT-5.6 result
+### 0:18–0:42 — One workspace and one source of truth
 
-Generate or show a saved collection description or prompt set. Keep loading/typing out of the recording.
+**On screen:** Briefly show the Workspace sidebar, task board, team members, and shared business identity. Do not open every menu.
 
-Say: “The model receives the designer’s actual collection context and is instructed to preserve intent and avoid invented details.”
+**Say:**
 
-### 1:20–1:45 — The connected workflow
+“The team signs in once and shares one business workspace. Business details, currency, branding, orders, deadlines, tasks, and collaborators are available across every studio. The workspace gives a small fashion team a clear operational view without forcing them into enterprise software.”
 
-Select **Continue to Costing Studio**. Show the imported-success notice, product name, and fabric rows.
+### 0:42–1:15 — AI-assisted design with real creative context
 
-Say: “This is the bridge most creative tools miss. Costudio transfers creative facts, but deliberately leaves prices and quantities blank for the maker’s real data.”
+**On screen:** Open Design. Show the saved designer profile and collection, then move quickly through the selected palette, fabric swatches, reference sketches, and generated gallery. Pause on the best generated collection images.
 
-### 1:45–2:20 — Costing and business value
+**Say:**
 
-Show prepared material prices, production time, hourly rate, COGS, recommended prices, and break-even calculation. Save the product and show it on the dashboard.
+“In Design Studio, the designer builds a reusable profile, selects colours and fabrics, uploads sketches or style references, and describes the collection. GPT-5.6 develops the writing and production-aware visual direction through a secure Supabase Edge Function, while image generation turns that context into collection concepts. The result is saved and reusable—not a disposable chat response.”
 
-Say: “Costudio includes salary, overheads, material wastage, and production time, so pricing reflects a sustainable business rather than guesswork.”
+### 1:15–1:38 — From creative decision to viable price
 
-### 2:20–2:45 — Codex implementation
+**On screen:** Open Costing from Design or use a prepared imported product. Show materials, wastage, production stages, hourly rate, COGS, and recommended selling prices.
 
-Show the repository structure, README, or architecture table.
+**Say:**
 
-Say: “Codex helped consolidate the newest PHP costing system and React studio, implement the handoff, migrate collaboration to Supabase Realtime, move AI calls to GPT-5.6 on the Responses API, secure credentials, and validate the production builds.”
+“Costudio then carries the product into costing. It preserves the creative facts but asks the maker for real supplier prices, consumption, wastage, labour time, salary, and overhead. That produces COGS, break-even information, and viable direct, wholesale, and boutique prices instead of pricing by guesswork.”
 
-### 2:45–2:58 — Close
+### 1:38–2:05 — Client, order, measurement, and workflow tracking
 
-“Costudio helps independent fashion teams move from inspiration to a product they can confidently produce, price, and sell.”
+**On screen:** Open Clients, select a prepared customer, show measurements, then open the order with its due date, payment status, and assigned production stages. Return briefly to the Workspace task board to show the deadline/task connection.
+
+**Say:**
+
+“The commercial workflow stays connected to the customer. A client can have measurements, an individual design, orders, deposits, and delivery notes. Each order has design, patternmaking, sewing, finishing, and custom tasks that can be assigned to team members. Due dates flow back to the shared task board, so everyone can see progress and responsibility.”
+
+### 2:05–2:32 — Production handoff anywhere in the world
+
+**On screen:** Open Production. Show the connected-folder status, the four-step handoff, an order attachment, selected pattern/tech-sheet files, and the Share Production Pack dialog. Do not expose a real private share URL in the video.
+
+**Say:**
+
+“Production Handoff closes the final gap. The studio can connect a pattern folder, keep reusable master patterns, attach approved designs, measurements, specifications, and tech sheets to an order, and send one secure, expiring production pack to a collaborator or an external manufacturer—even when production is in another country.”
+
+### 2:32–2:48 — Why Codex matters
+
+**On screen:** Return to the Workspace or briefly show the repository README—not raw source code for more than a few seconds.
+
+**Say:**
+
+“Codex helped transform separate design and costing applications into this deployable product: one authentication system, shared Supabase data, secure OpenAI calls, cross-studio handoffs, collaborative tasks, CRM, and production sharing, all validated and deployed on Vercel.”
+
+### 2:48–2:58 — Close
+
+**On screen:** Finish on the Workspace with “From sketch to customer” visible.
+
+**Say:**
+
+“Costudio gives independent fashion teams the connected infrastructure to create confidently, price sustainably, produce clearly, and deliver professionally—from sketch to customer.”
+
+### If something fails while recording
+
+- If generation is slow, show the saved collection and say, “Here is the result generated from the saved collection context.”
+- If a page reloads, continue speaking while it loads; do not apologize on camera.
+- If folder permissions appear, choose the prepared demo folder and continue.
+- If the native share window is unpredictable, stop at the populated Share Production Pack dialog and explain that it creates expiring links.
+- Record in sections if necessary, then join them. The final video should feel continuous, but it does not need to be captured in one take.
 
 ## Suggested sample collection
 
@@ -118,8 +160,9 @@ Say: “Codex helped consolidate the newest PHP costing system and React studio,
 
 - [ ] Project is deployed and the judge URL works in a private browser window.
 - [ ] Supabase status reports `hasKey: true` and `gpt-5.6-terra`.
-- [ ] Design collaboration works in two browser windows.
+- [ ] Workspace members, assignments, messages, and task updates work with the demo account.
 - [ ] Design-to-Costing handoff works on the deployed origin.
+- [ ] Production contains at least one order-attached file and the Share Production Pack dialog opens.
 - [ ] Public YouTube video is under three minutes.
 - [ ] Voiceover explicitly explains Codex and GPT-5.6 usage.
 - [ ] Repository contains README, deployment instructions, and no secrets.
