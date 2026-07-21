@@ -28,6 +28,12 @@ Run `supabase/migrations/202607210004_workspace_tasks.sql` to activate the
 homepage task board and realtime workspace messages. Both tables use the same
 business membership RLS boundary as Design, Costing, and CRM.
 
+Run `supabase/migrations/202607210005_workspace_business_settings.sql` to add
+the central business identity, contact, logo, currency, and unit defaults.
+
+Run `supabase/migrations/202607210006_order_due_date_tasks.sql` to add order due
+dates and link active order deadlines to the Workspace To do board.
+
 If Costing's MySQL tables already existed before shared authentication was
 added, run `costing/migrations/001_add_supabase_uid.sql` once in phpMyAdmin.
 Fresh MySQL installations should use the updated `costing/setup.sql` instead.

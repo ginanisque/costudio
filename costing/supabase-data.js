@@ -32,7 +32,29 @@
   function clientRow(r) { return { id:Number(r.id),name:r.name,email:r.email||'',phone:r.phone||'',measurements:r.measurements||{},preferences:r.preferences||'',notes:r.notes||'',createdAt:r.created_at }; }
   function templateRow(r) { return { id:Number(r.id),name:r.name,category:r.category||'',unit:r.unit||'in',fields:r.fields||[],createdAt:r.created_at,updatedAt:r.updated_at }; }
   function materialRow(r) { return { id:Number(r.id),name:r.name,type:r.type,unit:r.unit,pricePerUnit:number(r.price_per_unit),qtyInStock:number(r.qty_in_stock),source:r.source,customerName:r.customer_name||'',notes:r.notes||'',createdAt:r.created_at }; }
-  function orderRow(r) { return { id:Number(r.id),orderType:r.order_type,customerId:r.customer_id===null?null:Number(r.customer_id),customerName:r.crm_clients?.name||'',productName:r.product_name,productId:r.product_id===null?null:Number(r.product_id),quantity:Number(r.quantity)||1,priceAgreed:number(r.price_agreed),currency:r.currency,status:r.status,paymentStatus:r.payment_status,depositAmount:number(r.deposit_amount),notes:r.notes||'',materials:r.materials||[],orderedAt:r.ordered_at,updatedAt:r.updated_at }; }
+  function orderRow(r) { return { id:Number(r.id),orderType:r.order_type,customerId:r.customer_id===null?null:Number(r.customer_id),customerName:r.crm_clients?.name||'',productName:r.product_name,productId:r.product_id===null?null:Number(r.product_id),quantity:Number(r.quantity)||1,priceAgreed:number(r.price_agreed),currency:r.currency,status:r.status,paymentStatus:r.payment_status,depositAmount:number(r.deposit_amount),notes:r.notes||'',materials:r.materials||[],orderedAt:r.ordered_at,dueDate:r.due_date||'',updatedAt:r.updated_at }; }
+
+  async function syncOrderTask(ctx, order) {
+    const sourceId = String(order.id);
+    const terminal = ['collected','sold','delivered','cancelled'].includes(order.status) || (order.order_type === 'stock' && order.status === 'in_stock');
+    if (!order.due_date || terminal) {
+      await client.from('workspace_tasks').delete().eq('business_id',ctx.business.id).eq('source_type','order').eq('source_id',sourceId);
+      return;
+    }
+    const customer = order.crm_clients?.name || (order.order_type === 'stock' ? 'Stock production' : 'Client order');
+    const values = {
+      title: `Complete order: ${order.product_name}`.slice(0,180),
+      description: `${customer} · ${Number(order.quantity)||1} item${Number(order.quantity)===1?'':'s'} · Open in Costing > Orders`,
+      due_date: order.due_date,
+      priority: 'high',
+    };
+    const { data: existing, error: findError } = await client.from('workspace_tasks').select('id').eq('business_id',ctx.business.id).eq('source_type','order').eq('source_id',sourceId).maybeSingle();
+    if (findError) throw findError;
+    const result = existing?.id
+      ? await client.from('workspace_tasks').update(values).eq('id',existing.id).eq('business_id',ctx.business.id)
+      : await client.from('workspace_tasks').insert({business_id:ctx.business.id,source_type:'order',source_id:sourceId,status:'todo',created_by:ctx.auth.id,...values});
+    if (result.error) throw result.error;
+  }
 
   async function save(table, businessId, body, values) {
     const payload = { business_id: businessId, ...values };
@@ -60,13 +82,15 @@
       ids[row.email] = Number(data.id);
     }
     const orders = [
-      {customer_id:ids['demo.amina@costudio.test'],product_name:'Silk Evening Gown',order_type:'bespoke',quantity:1,price_agreed:185000,currency:'₦',status:'in_production',payment_status:'deposit',deposit_amount:90000,notes:'[COSTUDIO_DEMO:evening-gown]'},
-      {customer_id:ids['demo.tola@costudio.test'],product_name:'Architectural Tailored Set',order_type:'bespoke',quantity:1,price_agreed:145000,currency:'₦',status:'ready',payment_status:'paid',deposit_amount:145000,notes:'[COSTUDIO_DEMO:tailored-set]'},
-      {customer_id:null,product_name:'Print Capsule Separates',order_type:'stock',quantity:6,price_agreed:65000,currency:'₦',status:'in_stock',payment_status:'unpaid',deposit_amount:0,notes:'[COSTUDIO_DEMO:print-capsule]'}
+      {customer_id:ids['demo.amina@costudio.test'],product_name:'Silk Evening Gown',order_type:'bespoke',quantity:1,price_agreed:185000,currency:'₦',status:'in_production',payment_status:'deposit',deposit_amount:90000,due_date:new Date(Date.now()+3*864e5).toISOString().slice(0,10),notes:'[COSTUDIO_DEMO:evening-gown]'},
+      {customer_id:ids['demo.tola@costudio.test'],product_name:'Architectural Tailored Set',order_type:'bespoke',quantity:1,price_agreed:145000,currency:'₦',status:'ready',payment_status:'paid',deposit_amount:145000,due_date:new Date(Date.now()+864e5).toISOString().slice(0,10),notes:'[COSTUDIO_DEMO:tailored-set]'},
+      {customer_id:null,product_name:'Print Capsule Separates',order_type:'stock',quantity:6,price_agreed:65000,currency:'₦',status:'in_stock',payment_status:'unpaid',deposit_amount:0,due_date:new Date().toISOString().slice(0,10),notes:'[COSTUDIO_DEMO:print-capsule]'}
     ];
     for (const row of orders) {
-      const { data } = await client.from('crm_orders').select('id').eq('business_id',businessId).eq('notes',row.notes).maybeSingle();
-      if (!data) await client.from('crm_orders').insert({business_id:businessId,materials:[],...row});
+      let { data } = await client.from('crm_orders').select('*,crm_clients(name)').eq('business_id',businessId).eq('notes',row.notes).maybeSingle();
+      if (!data) ({ data } = await client.from('crm_orders').insert({business_id:businessId,materials:[],...row}).select('*,crm_clients(name)').single());
+      else if (!data.due_date) ({ data } = await client.from('crm_orders').update({due_date:row.due_date}).eq('id',data.id).eq('business_id',businessId).select('*,crm_clients(name)').single());
+      if (data) await syncOrderTask(ctx,data);
     }
     return ok({ok:true,clients:3,orders:3});
   }
@@ -118,9 +142,11 @@
       }
       if (file === 'orders.php') {
         if (method === 'GET') {let q=client.from('crm_orders').select('*,crm_clients(name)').eq('business_id',bid).order('ordered_at',{ascending:false});const cid=Number(url.searchParams.get('customer_id'))||0;if(cid)q=q.eq('customer_id',cid);const {data,error}=await q;return error?fail(error.message):ok((data||[]).map(orderRow));}
-        if (method === 'DELETE') {const {error}=await client.from('crm_orders').delete().eq('id',idFrom(rawUrl)).eq('business_id',bid);return error?fail(error.message):ok({ok:true});}
-        if (method === 'PATCH') {const values={};if(body.status!==undefined)values.status=body.status;if(body.paymentStatus!==undefined)values.payment_status=body.paymentStatus;if(body.depositAmount!==undefined)values.deposit_amount=number(body.depositAmount);if(body.priceAgreed!==undefined)values.price_agreed=number(body.priceAgreed);const {error}=await client.from('crm_orders').update(values).eq('id',Number(body.id)).eq('business_id',bid);return error?fail(error.message):ok({ok:true});}
-        return save('crm_orders',bid,body,{customer_id:body.customerId||null,product_name:body.productName,product_id:body.productId||null,order_type:body.orderType||'bespoke',quantity:Number(body.quantity)||1,price_agreed:number(body.priceAgreed),currency:body.currency||ctx.business.currency_symbol,status:body.status||'quote',payment_status:body.paymentStatus||'unpaid',deposit_amount:number(body.depositAmount),notes:body.notes||'',materials:body.materials||[],ordered_at:body.orderedAt?new Date(body.orderedAt).toISOString():new Date().toISOString()});
+        if (method === 'DELETE') {const orderId=idFrom(rawUrl);const {error}=await client.from('crm_orders').delete().eq('id',orderId).eq('business_id',bid);if(error)return fail(error.message);await client.from('workspace_tasks').delete().eq('business_id',bid).eq('source_type','order').eq('source_id',String(orderId));return ok({ok:true});}
+        if (method === 'PATCH') {const values={};if(body.status!==undefined)values.status=body.status;if(body.paymentStatus!==undefined)values.payment_status=body.paymentStatus;if(body.depositAmount!==undefined)values.deposit_amount=number(body.depositAmount);if(body.priceAgreed!==undefined)values.price_agreed=number(body.priceAgreed);if(body.dueDate!==undefined)values.due_date=body.dueDate||null;const {data,error}=await client.from('crm_orders').update(values).eq('id',Number(body.id)).eq('business_id',bid).select('*,crm_clients(name)').single();if(error)return fail(error.message);await syncOrderTask(ctx,data);return ok({ok:true});}
+        const values={customer_id:body.customerId||null,product_name:body.productName,product_id:body.productId||null,order_type:body.orderType||'bespoke',quantity:Number(body.quantity)||1,price_agreed:number(body.priceAgreed),currency:body.currency||ctx.business.currency_symbol,status:body.status||'quote',payment_status:body.paymentStatus||'unpaid',deposit_amount:number(body.depositAmount),notes:body.notes||'',materials:body.materials||[],ordered_at:body.orderedAt?new Date(body.orderedAt).toISOString():new Date().toISOString(),due_date:body.dueDate||null};
+        const query=body.id?client.from('crm_orders').update(values).eq('id',Number(body.id)).eq('business_id',bid):client.from('crm_orders').insert({business_id:bid,...values});
+        const {data,error}=await query.select('*,crm_clients(name)').single();if(error)return fail(error.message);await syncOrderTask(ctx,data);return ok({ok:true,id:Number(data.id)});
       }
       if (file === 'feedback.php') {
         if (method === 'GET') {const {data,error}=await client.from('costudio_feedback').select('*').eq('business_id',bid).maybeSingle();return error?fail(error.message):ok(data?{exists:true,businessType:data.business_type,country:data.country,raisedPrices:data.raised_prices,priceIncrease:data.price_increase,impactText:data.impact_text,consent:data.consent}:{exists:false});}
