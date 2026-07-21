@@ -54,7 +54,7 @@ Measurements, Clients, and Orders. Judges can choose **Use demo** on
 `/auth.html` to enter the persistent demonstration workspace with:
 
 - Email: `demo@ginani.net`
-- Password: `CostudioDemo2026!`
+- Password: `costudio-demo2026`
 
 Create this user once in **Supabase Dashboard > Authentication > Users > Add
 user**, mark it confirmed, and use `Costudio Demo` as its business/display name.

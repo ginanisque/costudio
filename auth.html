@@ -27,7 +27,7 @@
         <button class="primary" id="submitButton" type="submit">Sign in</button>
       </form>
       <div class="demo" id="demoAccess">
-        <div class="demo-head"><div><strong>Competition demo</strong><p>Judges can enter the shared, persistent demonstration workspace.</p><code>demo@ginani.net</code><code>CostudioDemo2026!</code></div><button type="button" onclick="useDemoAccount()">Use demo</button></div>
+        <div class="demo-head"><div><strong>Competition demo</strong><p>Judges can enter the shared, persistent demonstration workspace.</p><code>demo@ginani.net</code><code>costudio-demo2026</code></div><button type="button" onclick="useDemoAccount()">Use demo</button></div>
       </div>
       <div class="links" id="standardLinks">
         <button class="link" type="button" onclick="setMode('register')">Create business account</button>
@@ -46,7 +46,7 @@
   <script>
     const authClient=window.supabase.createClient('https://krbedficypujbukslgif.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyYmVkZmljeXB1amJ1a3NsZ2lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NjM2MzgsImV4cCI6MjEwMDEzOTYzOH0.BSHiK0GMqFMk_Go0vmWuQ4FuIf4p0MPlUYAK5cINGwU',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const PUBLIC_APP_ORIGIN='https://costudio-bice.vercel.app';
-    const DEMO_EMAIL='demo@ginani.net',DEMO_PASSWORD='CostudioDemo2026!';
+    const DEMO_EMAIL='demo@ginani.net',DEMO_PASSWORD='costudio-demo2026';
     const params=new URLSearchParams(location.search);let mode=params.get('mode')||'login';
     const rawNext=params.get('next')||'/';const next=rawNext.startsWith('/')&&!rawNext.startsWith('//')?rawNext:'/';
     const el=id=>document.getElementById(id);
