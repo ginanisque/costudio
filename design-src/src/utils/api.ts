@@ -1,7 +1,9 @@
 import { retry } from "./backoff";
 
 // Prefer absolute API base if provided (works without dev proxy)
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
+  || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/costudio-ai` : '');
 const api = (path: string) => `${API_BASE}${path}`;
 
 

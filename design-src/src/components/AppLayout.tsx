@@ -3,7 +3,11 @@ import Header from './Header';
 import SettingsPortal from './SettingsPortal';
 
 // Read once — import.meta.env is static after build
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? '';
+// Production AI calls run in a Supabase Edge Function so the OpenAI key never
+// reaches the browser. VITE_API_URL remains available for the local Node server.
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '') ?? '';
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')
+  || (SUPABASE_URL ? `${SUPABASE_URL}/functions/v1/costudio-ai` : '');
 const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const AppLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -49,16 +53,15 @@ const AppLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
             >
               ×
             </button>
-            <div className="font-medium mb-1">Setup required</div>
+            <div className="font-medium mb-1">AI assistant unavailable</div>
             <div className="text-slate-600 mb-2">
-              {status.ok ? 'OpenAI key not detected on the server.' : (status.error || 'API server is offline or unreachable.')}
+              {status.ok
+                ? 'The Design workspace is online, but its server-side OpenAI key has not been configured.'
+                : 'Design, costing, and client management remain available. AI writing and image tools need the Costudio server function.'}
             </div>
-            <ol className="list-decimal pl-5 space-y-1 text-slate-700">
-              <li>Create <code>.env</code> in project root (next to <code>package.json</code>).</li>
-              <li>Add <code>OPENAI_API_KEY=sk-...</code> and optional <code>CORS_ORIGIN</code>.</li>
-              <li>Start backend: <code>npm run server</code> (listens on <code>PORT</code> or 3000).</li>
-              <li>Start frontend: <code>npm run dev</code> (proxy) or set <code>VITE_API_URL</code> and rebuild.</li>
-            </ol>
+            <p className="text-slate-700">
+              The OpenAI key belongs in Supabase Edge Function Secrets, never in this page or a browser-exposed Vite variable.
+            </p>
             <div className="mt-3">
               <button type="button" className="inline-flex items-center px-3 py-1.5 text-sm border rounded" onClick={refreshStatus}>
                 Recheck
@@ -74,7 +77,7 @@ const AppLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Settings</h2>
           <div className="text-sm text-muted-foreground">
-            Keep your OpenAI key on the server only. Do not paste it into the browser.
+            OpenAI access is provided by the Costudio Supabase Edge Function. Never paste an API key into the browser.
           </div>
           <div className="rounded border p-3 bg-white">
             <div className="font-medium mb-2">Server Status</div>
@@ -88,13 +91,8 @@ const AppLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
             </button>
           </div>
           <div className="rounded border p-3 bg-white space-y-2 text-sm">
-            <div className="font-medium">Setup</div>
-            <ol className="list-decimal pl-5 space-y-1">
-              <li>Create <code>.env</code> in project root (next to package.json).</li>
-              <li>Add: <code>OPENAI_API_KEY=sk-...</code></li>
-              <li>Optional: <code>CORS_ORIGIN=http://localhost:8080,http://127.0.0.1:8080</code></li>
-              <li>Restart server: <code>npm run server</code></li>
-            </ol>
+            <div className="font-medium">Production configuration</div>
+            <p>Add <code>OPENAI_API_KEY</code> under Supabase Edge Function Secrets, then deploy the <code>costudio-ai</code> function.</p>
           </div>
           <div className="flex justify-end">
             <button type="button" className="inline-flex items-center px-4 py-2 border rounded" onClick={() => setOpen(false)}>
