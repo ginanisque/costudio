@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Costudio Account</title>
+  <meta name="description" content="One Costudio account for Design, Costing, Clients, Orders, and Measurements.">
+  <style>
+    :root{--ink:#13211f;--green:#176b5b;--teal:#1b8d79;--paper:#fbfaf5;--muted:#66736f;--line:#dce4df;--danger:#b83a3a}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 20% 10%,#e3f3eb,transparent 38%),linear-gradient(135deg,#f8f6ee,#edf5f1);font-family:Inter,system-ui,sans-serif;color:var(--ink)}
+    .shell{width:min(440px,100%)}.brand{display:flex;justify-content:center;align-items:center;gap:10px;margin-bottom:22px;color:var(--ink);font-size:1.4rem;font-weight:900;text-decoration:none}.mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--green),var(--teal));display:grid;place-items:center;color:white}
+    .card{padding:32px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.94);box-shadow:0 24px 70px rgba(20,43,37,.14)}h1{margin:0;font-size:1.7rem}.lead{margin:8px 0 24px;color:var(--muted);line-height:1.5}.field{margin-bottom:15px}label{display:block;margin-bottom:6px;font-size:.83rem;font-weight:800}input{width:100%;padding:12px;border:1.5px solid var(--line);border-radius:8px;font:inherit}input:focus{outline:none;border-color:var(--teal)}button{border:0;cursor:pointer;font:inherit}.primary{width:100%;padding:13px;border-radius:8px;background:var(--green);color:white;font-weight:850}.primary:disabled{opacity:.6}.links{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:18px}.link{padding:0;background:none;color:var(--green);text-decoration:underline;text-underline-offset:3px}.status{display:none;margin:0 0 15px;padding:10px 12px;border-radius:8px;background:#edf7f2;color:var(--green);font-size:.85rem;line-height:1.45}.status.error{background:#fff0f0;color:var(--danger)}.unity{margin:20px 0 0;text-align:center;color:var(--muted);font-size:.78rem}.hidden{display:none}.back{display:block;margin-top:18px;text-align:center;color:var(--muted);font-size:.84rem}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <a class="brand" href="/"><span class="mark">C</span>Costudio</a>
+    <section class="card">
+      <h1 id="title">Sign in</h1>
+      <p class="lead" id="lead">One account for your complete business workspace.</p>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <form id="accountForm">
+        <div class="field hidden" id="businessField"><label for="businessName">Business name</label><input id="businessName" autocomplete="organization" placeholder="e.g. Ginani Apparel"></div>
+        <div class="field" id="emailField"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
+        <div class="field" id="passwordField"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" minlength="10" required placeholder="At least 10 characters"></div>
+        <div class="field hidden" id="confirmField"><label for="confirmPassword">Confirm password</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="10"></div>
+        <button class="primary" id="submitButton" type="submit">Sign in</button>
+      </form>
+      <div class="links" id="standardLinks">
+        <button class="link" type="button" onclick="setMode('register')">Create business account</button>
+        <button class="link" type="button" onclick="setMode('forgot')">Forgot password?</button>
+      </div>
+      <div class="links hidden" id="registerLinks">
+        <button class="link" type="button" onclick="setMode('login')">Already registered? Sign in</button>
+        <button class="link" type="button" onclick="resendConfirmation()">Resend confirmation</button>
+      </div>
+      <p class="unity">Design · Costing · Clients · Orders · Measurements</p>
+      <a class="back" href="/">← Back to Costudio</a>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+  <script>
+    const authClient=window.supabase.createClient('https://krbedficypujbukslgif.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyYmVkZmljeXB1amJ1a3NsZ2lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NjM2MzgsImV4cCI6MjEwMDEzOTYzOH0.BSHiK0GMqFMk_Go0vmWuQ4FuIf4p0MPlUYAK5cINGwU',{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+    const params=new URLSearchParams(location.search);let mode=params.get('mode')||'login';
+    const rawNext=params.get('next')||'/';const next=rawNext.startsWith('/')&&!rawNext.startsWith('//')?rawNext:'/';
+    const el=id=>document.getElementById(id);
+    function message(text,error=false){const box=el('status');box.textContent=text;box.className='status'+(error?' error':'');box.style.display=text?'block':'none';}
+    function setMode(nextMode){mode=nextMode;message('');const register=mode==='register',forgot=mode==='forgot',reset=mode==='reset';el('title').textContent=register?'Create your business account':forgot?'Reset your password':reset?'Choose a new password':'Sign in';el('lead').textContent=register?'Set up one account for every Costudio workspace.':forgot?'We will email you a secure password-reset link.':reset?'Enter a new password for your Costudio account.':'One account for your complete business workspace.';el('businessField').classList.toggle('hidden',!register);el('emailField').classList.toggle('hidden',reset);el('confirmField').classList.toggle('hidden',!(register||reset));el('passwordField').classList.toggle('hidden',forgot);el('password').autocomplete=register||reset?'new-password':'current-password';el('businessName').required=register;el('confirmPassword').required=register||reset;el('email').required=!reset;el('password').required=!forgot;el('submitButton').textContent=register?'Create account':forgot?'Send reset link':reset?'Update password':'Sign in';el('standardLinks').classList.toggle('hidden',register||reset);el('registerLinks').classList.toggle('hidden',!register);}
+    async function resendConfirmation(){const email=el('email').value.trim();if(!email){message('Enter your email address first.',true);return;}const {error}=await authClient.auth.resend({type:'signup',email,options:{emailRedirectTo:`${location.origin}/auth.html?next=${encodeURIComponent(next)}`}});message(error?error.message:'Confirmation email resent. Check your inbox and spam folder.',!!error);}
+    el('accountForm').addEventListener('submit',async event=>{event.preventDefault();message('');const button=el('submitButton');button.disabled=true;const email=el('email').value.trim(),password=el('password').value,businessName=el('businessName').value.trim(),confirmation=el('confirmPassword').value;try{
+      if((mode==='register'||mode==='reset')&&password!==confirmation)throw new Error('Passwords do not match.');
+      if(mode==='register'){if(!businessName)throw new Error('Business name is required.');const {data,error}=await authClient.auth.signUp({email,password,options:{emailRedirectTo:`${location.origin}/auth.html?next=${encodeURIComponent(next)}`,data:{business_name:businessName,display_name:businessName}}});if(error)throw error;if(!data.session){message('Account created. Confirm your email, or use Resend confirmation below.');return;}location.replace(next);return;}
+      if(mode==='forgot'){const {error}=await authClient.auth.resetPasswordForEmail(email,{redirectTo:`${location.origin}/auth.html?mode=reset&next=${encodeURIComponent(next)}`});if(error)throw error;message('Password-reset email sent. Check your inbox and spam folder.');return;}
+      if(mode==='reset'){const {error}=await authClient.auth.updateUser({password});if(error)throw error;message('Password updated. Opening Costudio…');setTimeout(()=>location.replace(next),700);return;}
+      const {error}=await authClient.auth.signInWithPassword({email,password});if(error)throw error;location.replace(next);
+    }catch(error){message(error?.message||'Authentication failed.',true);}finally{button.disabled=false;}});
+    async function boot(){setMode(mode);const {data}=await authClient.auth.getSession();if(data.session&&mode!=='reset')location.replace(next);}
+    void boot();
+  </script>
+</body>
+</html>

@@ -1440,7 +1440,10 @@ const API = {
   async request(url, method = 'GET', data = null) {
     if (window.costudioDataApi) {
       const direct = await window.costudioDataApi.request(url, method, data);
-      if (direct) return direct;
+      if (direct) {
+        if (direct.status === 401) window.location.replace('/auth.html?next=' + encodeURIComponent(window.location.pathname + window.location.search));
+        return direct;
+      }
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -1860,13 +1863,7 @@ async function doLogout() {
   if (!confirm('Sign out? Your data is saved and will be waiting when you sign back in.')) return;
   await API.request('api/auth.php', 'POST', { action: 'logout' });
   await window.costudioAuth.auth.signOut();
-  currentUser = null;
-  csrfToken   = '';
-  inventory   = [];
-  S = blankState();
-  cur = '$';
-  showAuthModal();
-  switchStep('stepEmail');
+  window.location.replace('/auth.html?next=' + encodeURIComponent('/costing/'));
 }
 
 function openSwitchAccount() {
@@ -2050,8 +2047,8 @@ window.onload = async () => {
   if (_isPasswordReset) {
     const loader = document.getElementById('appLoader');
     if (loader) loader.style.display = 'none';
-    showAuthModal();
-    switchStep('stepResetPw');
+    window.location.replace('/auth.html?mode=reset&next=' + encodeURIComponent('/costing/'));
+    return;
   } else {
     // Check for active PHP session
     try {
@@ -2078,16 +2075,16 @@ window.onload = async () => {
         } else {
           const loader = document.getElementById('appLoader');
           if (loader) loader.style.display = 'none';
-          showAuthModal();
-          switchStep('stepEmail');
+          window.location.replace('/auth.html?next=' + encodeURIComponent(window.location.pathname + window.location.search));
+          return;
         }
       }
     } catch (e) {
       console.error('Startup error:', e);
       const loader = document.getElementById('appLoader');
       if (loader) loader.style.display = 'none';
-      showAuthModal();
-      switchStep('stepEmail');
+      window.location.replace('/auth.html?next=' + encodeURIComponent(window.location.pathname + window.location.search));
+      return;
     }
   }
 

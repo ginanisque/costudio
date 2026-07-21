@@ -35,6 +35,10 @@ Costing, clients, and Measurements. Apply
 SQL Editor before registering the first account. Do not run `costing/setup.sql`
 in Supabase; it is the MySQL schema for the PHP costing compatibility layer.
 
+`/auth.html` is the single account entry point. Design, Costing, and the Client
+CRM redirect there when signed out and reuse the same Supabase session when
+signed in; individual studios do not maintain separate accounts.
+
 ### Competition demo
 
 After signing in, open the **Clients** card from the Costudio homepage and
