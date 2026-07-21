@@ -41,8 +41,8 @@ export interface SessionSidebarProps {
   generatedDescription?: string;
   imagesCount?: number;
   polishedBio?: string;
-  onSaveDesigner?: () => void;
-  onSaveCollection?: () => void;
+  onSaveDesigner?: () => void | Promise<void>;
+  onSaveCollection?: () => void | Promise<void>;
   onLoadDesigner?: (profile: DesignerProfile, polishedProfile?: string) => void;
   onLoadCollection?: (data: CollectionData, title?: string, description?: string) => void;
   onNavigate?: (tab: string) => void;
@@ -68,6 +68,8 @@ export default function SessionSidebar({
   const [unread, setUnread] = useState(0);
   const [participants, setParticipants] = useState<string[]>([]);
   const [typing, setTyping] = useState<Record<string, boolean>>({});
+  const [savingDesigner, setSavingDesigner] = useState(false);
+  const [savingCollection, setSavingCollection] = useState(false);
 
   useEffect(() => {
     try {
@@ -77,6 +79,15 @@ export default function SessionSidebar({
       // ignore
     }
   }, [designer, collection, generatedTitle, generatedDescription, imagesCount]);
+
+  useEffect(() => {
+    const refresh = () => {
+      setDesigners(listDesigners());
+      setCollections(listCollections());
+    };
+    window.addEventListener('costudio-storage-changed', refresh);
+    return () => window.removeEventListener('costudio-storage-changed', refresh);
+  }, []);
 
   // Poll unread + participants/typing using current room context
   useEffect(() => {
@@ -118,7 +129,7 @@ export default function SessionSidebar({
                     <div className="text-muted-foreground">{designer.role || designer.style || '—'}{designer.experience ? ` · ${designer.experience}` : ''}</div>
                   </div>
                   {onSaveDesigner && (
-                    <Button size="sm" variant="outline" onClick={onSaveDesigner}>Save</Button>
+                    <Button size="sm" variant="outline" disabled={savingDesigner} onClick={async () => { setSavingDesigner(true); try { await onSaveDesigner(); } finally { setSavingDesigner(false); } }}>{savingDesigner ? 'Saving…' : 'Save'}</Button>
                   )}
                 </div>
                 {polishedBio && (
@@ -153,7 +164,7 @@ export default function SessionSidebar({
                     <div className="text-muted-foreground">{collection.launchYear || ''} · <span className="capitalize">{displayCategory || '—'}</span></div>
                   </div>
                   {onSaveCollection && (
-                    <Button size="sm" variant="outline" onClick={onSaveCollection}>Save</Button>
+                    <Button size="sm" variant="outline" disabled={savingCollection} onClick={async () => { setSavingCollection(true); try { await onSaveCollection(); } finally { setSavingCollection(false); } }}>{savingCollection ? 'Saving…' : 'Save'}</Button>
                   )}
                 </div>
               </div>
@@ -166,8 +177,6 @@ export default function SessionSidebar({
             <div>Images</div>
             <Badge variant="secondary">{imagesCount}</Badge>
           </div>
-          {/* Import IDs moved to Catalogue page */}
-          <Button variant="outline" className="w-full" onClick={()=> { const before = designers.length; const after = listDesigners(); setDesigners(after); const removed = Math.max(0, before - after.length); toast({ title: 'Designers repaired', description: removed ? `${removed} duplicate(s) removed` : 'No duplicates found' }); }}>Repair Designers</Button>
         </CardContent>
       </Card>
 
@@ -215,7 +224,7 @@ export default function SessionSidebar({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="hidden">
         <CardHeader>
           <CardTitle className="text-base">Participants</CardTitle>
         </CardHeader>
@@ -247,7 +256,7 @@ export default function SessionSidebar({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="hidden">
         <CardHeader>
           <CardTitle className="text-base">Tools</CardTitle>
         </CardHeader>

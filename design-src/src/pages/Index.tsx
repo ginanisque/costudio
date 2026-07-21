@@ -25,7 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ZipExportButton from '@/components/ZipExportButton';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { generateCollectionCopy, generateDesignerProfile } from '@/utils/api';
-import { saveCollection, saveCollectionPersisted, saveDesigner, computeCollectionId, computeDesignerId, listDesigners, listCollections, listPalettes, listFabrics, savePalette, saveFabric, updateCollection, computePaletteId, computeFabricId, nextPieceSeq, computePieceId, savePiece, savePiecePersisted, listPiecesByCollection, updatePiece, addToInbox, addMessage, setPeerSeen, setTyping } from '@/utils/storage';
+import { saveCollectionPersisted, saveDesignerPersisted, computeCollectionId, computeDesignerId, listDesigners, listCollections, listPalettes, listFabrics, savePalette, saveFabric, updateCollection, computePaletteId, computeFabricId, nextPieceSeq, computePieceId, savePiece, savePiecePersisted, listPiecesByCollection, updatePiece, addToInbox, addMessage, setPeerSeen, setTyping } from '@/utils/storage';
 import type { ImageItem } from '@/types';
 import { broadcast, getCurrentCollab } from '@/utils/collab';
 import { downloadCollectionZip } from '@/utils/zip';
@@ -251,19 +251,19 @@ const Index = () => {
     setDesignerProfile(profile);
     const designerId = computeDesignerId(profile);
     const createdAt = new Date().toISOString();
-    try {
-      saveDesigner({ id: designerId, profile, createdAt, name: profile.name });
-      localStorage.setItem(activeDesignerKey, designerId);
-    } catch { /* the in-session profile remains available */ }
-    // Generate polished profile copy via AI
-    generateDesignerProfile(profile)
-      .then(({ profile: polished }) => {
+    void (async () => {
+      try {
+        await saveDesignerPersisted({ id: designerId, profile, createdAt, name: profile.name });
+        localStorage.setItem(activeDesignerKey, designerId);
+        toast({ title: 'Designer profile saved', description: 'Saved to this shared workspace.' });
+      } catch (error) {
+        toast({ title: 'Designer profile was not saved', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+      }
+      try {
+        const { profile: polished } = await generateDesignerProfile(profile);
         setPolishedBio(polished);
-        try {
-          saveDesigner({ id: designerId, profile, polishedProfile: polished, createdAt, name: profile.name });
-        } catch { /* ignore */ }
-      })
-      .catch(() => {
+        await saveDesignerPersisted({ id: designerId, profile, polishedProfile: polished, createdAt, name: profile.name });
+      } catch {
         // Fallback: simple copy if server/AI unavailable
         const parts = [
           profile.name && `${profile.name} is a ${profile.experience || ''} fashion designer`,
@@ -273,16 +273,18 @@ const Index = () => {
         ].filter(Boolean);
         const fallbackBio = parts.join('. ') + (parts.length ? '' : '');
         setPolishedBio(fallbackBio);
-        try { saveDesigner({ id: designerId, profile, polishedProfile: fallbackBio, createdAt, name: profile.name }); } catch { /* ignore */ }
-      })
-      .finally(() => setActiveTab('collection'));
+        try { await saveDesignerPersisted({ id: designerId, profile, polishedProfile: fallbackBio, createdAt, name: profile.name }); } catch { /* the initial confirmed save already reported its result */ }
+      } finally {
+        setActiveTab('collection');
+      }
+    })();
   };
 
   const generateCollectionInfo = (data: CollectionData) => {
     setCollection(data);
     // Ask AI to craft title/description
     generateCollectionCopy(data)
-      .then(({ title, description }) => {
+      .then(async ({ title, description }) => {
         let t = title;
         let d = description;
         if (!d || tooSimilar(d, data.inspiration || '')) {
@@ -299,14 +301,23 @@ const Index = () => {
         setGeneratedDescription(d);
         try {
           const id = computeCollectionId(data);
-          saveCollection({ id, data, title: t, description: d, createdAt: new Date().toISOString() });
+          const existing = listCollections().find(item => item.id === id);
+          await saveCollectionPersisted({ ...existing, id, data, title: t, description: d, createdAt: existing?.createdAt || new Date().toISOString() });
           try { localStorage.setItem('fashionAI.currentCollectionId', id); } catch { /* ignore */ }
-        } catch { /* ignore */ }
+          toast({ title: 'Collection saved', description: 'Saved to this shared workspace.' });
+        } catch (error) {
+          toast({ title: 'Collection was not saved', description: error instanceof Error ? error.message : 'Please use Save to try again.', variant: 'destructive' });
+        }
       })
       .catch(() => {
         const local = enhanceCollectionCopyLocal(data);
         setGeneratedTitle(local.title);
         setGeneratedDescription(local.description);
+        const id = computeCollectionId(data);
+        const existing = listCollections().find(item => item.id === id);
+        void saveCollectionPersisted({ ...existing, id, data, title: local.title, description: local.description, createdAt: existing?.createdAt || new Date().toISOString() })
+          .then(() => { try { localStorage.setItem('fashionAI.currentCollectionId', id); } catch { /* ignore */ } })
+          .catch(error => toast({ title: 'Collection was not saved', description: error instanceof Error ? error.message : 'Please use Save to try again.', variant: 'destructive' }));
       });
   };
 
@@ -470,22 +481,29 @@ const Index = () => {
             polishedBio={polishedBio}
             onNavigate={(tab)=> setActiveTab(tab)}
             onOpenMessages={()=> setOpenMsgs(true)}
-            onSaveDesigner={() => {
+            onSaveDesigner={async () => {
               if (!designerProfile) return;
               try {
                 const id = computeDesignerId(designerProfile);
-                saveDesigner({ id, profile: designerProfile, polishedProfile: polishedBio || undefined, createdAt: new Date().toISOString(), name: designerProfile.name });
+                const existing = listDesigners().find(item => item.id === id);
+                await saveDesignerPersisted({ id, profile: designerProfile, polishedProfile: polishedBio || undefined, createdAt: existing?.createdAt || new Date().toISOString(), name: designerProfile.name });
                 localStorage.setItem(activeDesignerKey, id);
-                toast({ title: 'Designer profile saved', description: 'It will be restored when you return to this workspace.' });
-              } catch { /* ignore */ }
+                toast({ title: 'Designer profile saved', description: 'Saved to this shared workspace.' });
+              } catch (error) {
+                toast({ title: 'Designer profile was not saved', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+              }
             }}
-            onSaveCollection={() => {
+            onSaveCollection={async () => {
               if (!collection) return;
               try {
                 const id = computeCollectionId(collection);
-                saveCollection({ id, data: collection, title: generatedTitle, description: generatedDescription, createdAt: new Date().toISOString() });
+                const existing = listCollections().find(item => item.id === id);
+                await saveCollectionPersisted({ ...existing, id, data: collection, title: generatedTitle, description: generatedDescription, createdAt: existing?.createdAt || new Date().toISOString() });
                 try { localStorage.setItem('fashionAI.currentCollectionId', id); } catch { /* ignore */ }
-              } catch { /* ignore */ }
+                toast({ title: 'Collection saved', description: 'Saved to this shared workspace and ready for Export.' });
+              } catch (error) {
+                toast({ title: 'Collection was not saved', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+              }
             }}
             onLoadDesigner={(p, polished)=> {
               setDesignerProfile(p);
@@ -661,13 +679,16 @@ const Index = () => {
             {collection && (generatedTitle || generatedDescription) && (
               <div className="sticky bottom-0 z-10 border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2">
                 <div className="flex items-center justify-end gap-2">
-                  <Button variant="outline" onClick={()=> {
+                  <Button variant="outline" onClick={async ()=> {
                     try {
                       const id = computeCollectionId(collection);
-                      saveCollection({ id, data: collection, title: generatedTitle, description: generatedDescription, createdAt: new Date().toISOString() });
+                      const existing = listCollections().find(item => item.id === id);
+                      await saveCollectionPersisted({ ...existing, id, data: collection, title: generatedTitle, description: generatedDescription, createdAt: existing?.createdAt || new Date().toISOString() });
                       try { localStorage.setItem('fashionAI.currentCollectionId', id); } catch { /* ignore */ }
-                      toast({ title: 'Collection saved' });
-                    } catch { /* ignore */ }
+                      toast({ title: 'Collection saved', description: 'Saved to this shared workspace and ready for Export.' });
+                    } catch (error) {
+                      toast({ title: 'Collection was not saved', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' });
+                    }
                   }}>Save</Button>
                   <Button variant="default" onClick={()=> setActiveTab('trends')}>Next: Trends</Button>
                 </div>

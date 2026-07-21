@@ -176,6 +176,10 @@ const ENTITY_TYPES: Record<string, string> = {
   pieces: 'piece', notes: 'note', promptsets: 'prompt_set', moodboards: 'moodboard',
 };
 
+function notifyStorageChanged(type: 'designers' | 'collections') {
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('costudio-storage-changed', { detail: { type } }));
+}
+
 function serverSave(type: string, entity: unknown) {
   void serverSaveConfirmed(type, entity).catch(error => {
     console.error(`Could not persist ${type} record`, error);
@@ -273,6 +277,23 @@ export function saveDesigner(d: StoredDesigner) {
     if (idx >= 0) list[idx] = d; else list.unshift(d);
     writeArray(D_KEY, list);
   }
+  notifyStorageChanged('designers');
+}
+
+export async function saveDesignerPersisted(d: StoredDesigner): Promise<void> {
+  const id = d?.id || computeDesignerId(d?.profile);
+  d.id = id;
+  if (cache.ready) {
+    const idx = cache.designers.findIndex(x => x.id === id);
+    if (idx >= 0) cache.designers[idx] = d; else cache.designers.unshift(d);
+    await serverSaveConfirmed('designers', d);
+  } else {
+    const list = listDesigners();
+    const idx = list.findIndex(x => x.id === id);
+    if (idx >= 0) list[idx] = d; else list.unshift(d);
+    writeArray(D_KEY, list);
+  }
+  notifyStorageChanged('designers');
 }
 
 // ── Collections ───────────────────────────────────────────────
@@ -295,6 +316,7 @@ export function saveCollection(c: StoredCollection) {
     if (idx >= 0) list[idx] = c; else list.unshift(c);
     writeArray(C_KEY, list);
   }
+  notifyStorageChanged('collections');
 }
 
 export async function saveCollectionPersisted(c: StoredCollection): Promise<void> {
@@ -310,6 +332,7 @@ export async function saveCollectionPersisted(c: StoredCollection): Promise<void
     if (idx >= 0) list[idx] = c; else list.unshift(c);
     writeArray(C_KEY, list);
   }
+  notifyStorageChanged('collections');
 }
 
 export function updateCollection(id: string, patch: Partial<StoredCollection>) {
