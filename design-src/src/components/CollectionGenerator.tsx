@@ -139,6 +139,8 @@ export default function CollectionGenerator({ initialDescription, pieceCount, on
       const modelImages = selectedModels.map(model => model.image).filter((value): value is string => Boolean(value)).slice(0, 8);
       const paletteReference = createPaletteReference(palette);
       const paletteImages = paletteReference ? [paletteReference] : [];
+      // Also send the strip through the legacy style channel until every Edge Function is current.
+      const styleAndPaletteImages = paletteReference ? [...styleImages, paletteReference] : styleImages;
       const brief = [
         direction.trim(),
         palette.length ? `Required palette: ${palette.join(', ')}.` : '',
@@ -147,7 +149,7 @@ export default function CollectionGenerator({ initialDescription, pieceCount, on
         'Create distinct but cohesive full-length fashion looks. Preserve the designer’s style language and show realistic construction and fabric drape.',
       ].filter(Boolean).join('\n');
       setProgress('Developing the collection pieces…');
-      const prompts = await suggestPrompts(brief, [], count, { fabricImages, styleImages, paletteImages, modelImages });
+      const prompts = await suggestPrompts(brief, [], count, { fabricImages, styleImages: styleAndPaletteImages, paletteImages, modelImages });
       if (!prompts.length) throw new Error('The AI did not return any collection pieces.');
       const pieces: GeneratedPiece[] = [];
       for (let index = 0; index < prompts.length; index += 1) {
@@ -165,7 +167,7 @@ export default function CollectionGenerator({ initialDescription, pieceCount, on
           prompt: renderPrompt,
           size,
           fabricImages,
-          styleImages,
+          styleImages: styleAndPaletteImages,
           paletteImages,
           modelImages: assignedModel?.image ? [assignedModel.image] : [],
         });
