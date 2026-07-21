@@ -153,7 +153,10 @@ const Index = () => {
   const [generatedDescription, setGeneratedDescription] = useState('');
   const [polishedBio, setPolishedBio] = useState('');
   const [images, setImages] = useState<GeneratedImage[]>([]);
-  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('mode') === 'client' ? 'client-piece' : 'welcome');
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || (params.get('mode') === 'client' ? 'client-piece' : 'welcome');
+  });
   const [zipIncludeId, setZipIncludeId] = useState(true);
   const [openMsgs, setOpenMsgs] = useState(false);
   const [trendStyles, setTrendStyles] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('trend.styles')||'[]')||[] } catch { return [] } });
