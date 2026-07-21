@@ -38,7 +38,7 @@ const Header: React.FC<Props> = ({ onOpenSettings }) => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
+            <a href="/" className="flex items-center space-x-2" aria-label="Go to Costudio home">
               <div className="w-8 h-8 bg-gradient-to-r from-emerald-700 to-teal-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">C</span>
               </div>
@@ -48,7 +48,7 @@ const Header: React.FC<Props> = ({ onOpenSettings }) => {
                 </h1>
                 <p className="text-xs text-muted-foreground">Design Studio</p>
               </div>
-            </div>
+            </a>
             <Badge variant="secondary" className="hidden sm:inline-flex">
               Collaborative Workspace
             </Badge>

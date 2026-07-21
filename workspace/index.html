@@ -10,8 +10,8 @@
     :root{--ink:#142320;--muted:#66736f;--line:#dce5e1;--panel:#fff;--wash:#f4f8f6;--green:#116b59;--green2:#1b8b74;--teal:#dff4ed;--blue:#3b63ef;--orange:#d66a1f;--red:#c83f49;--shadow:0 14px 40px rgba(20,35,32,.09)}
     *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--wash)}button,input,select,textarea{font:inherit}button,a{transition:150ms ease}.hidden{display:none!important}
     .app{min-height:100vh;display:grid;grid-template-columns:248px minmax(0,1fr)}
-    .sidebar{position:sticky;top:0;height:100vh;padding:20px 14px;border-right:1px solid var(--line);background:#0f332c;color:#eefbf6;display:flex;flex-direction:column;z-index:20}
-    .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 22px}.brand-mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#17a082;color:#fff;font-size:20px;font-weight:900}.brand strong{font-size:20px}.brand small{display:block;color:#9bc5b9;margin-top:1px}
+    .sidebar{position:sticky;top:0;height:100vh;padding:20px 14px;border-right:1px solid var(--line);background:#0f332c;color:#eefbf6;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#477b6e transparent;z-index:20}.sidebar::-webkit-scrollbar{width:7px}.sidebar::-webkit-scrollbar-thumb{border-radius:10px;background:#477b6e}
+    .brand{display:flex;align-items:center;gap:11px;padding:4px 8px 22px;color:inherit;text-decoration:none}.brand:hover{color:#fff}.brand-mark{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#17a082;color:#fff;font-size:20px;font-weight:900}.brand strong{font-size:20px}.brand small{display:block;color:#9bc5b9;margin-top:1px}
     .workspace-chip{margin:0 6px 18px;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.07)}.workspace-chip small{color:#9bc5b9}.workspace-chip strong{display:block;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.workspace-chip select{width:100%;margin-top:8px;padding:6px;border:1px solid rgba(255,255,255,.16);border-radius:7px;color:#fff;background:#17483e}
     .nav-label{padding:8px 12px;color:#78aa9c;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.nav{display:grid;gap:4px}.nav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:9px;color:#d8eee7;text-decoration:none;font-size:14px;font-weight:650}.nav a:hover,.nav a.active{color:#fff;background:rgba(255,255,255,.11)}.nav svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9}
     .sidebar-foot{margin-top:auto;padding:14px 8px 4px;border-top:1px solid rgba(255,255,255,.1);color:#9bc5b9;font-size:12px;line-height:1.5}
@@ -39,7 +39,7 @@
   <div id="loading" class="loading"><div><div class="loader"></div><p style="color:#66736f;font-size:13px">Opening Costudio workspace…</p></div></div>
   <div id="app" class="app hidden">
     <aside id="sidebar" class="sidebar">
-      <div class="brand"><div class="brand-mark">C</div><div><strong>Costudio</strong><small>Fashion operations</small></div></div>
+      <a class="brand" href="/" aria-label="Go to Costudio home"><div class="brand-mark">C</div><div><strong>Costudio</strong><small>Fashion operations</small></div></a>
       <div class="workspace-chip"><small>Workspace</small><strong id="workspaceHandle">@costudio</strong><select id="workspaceSwitch" class="hidden" aria-label="Switch workspace"></select></div>
       <div class="nav-label">Workspace</div>
       <nav class="nav">

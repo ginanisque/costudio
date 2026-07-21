@@ -44,6 +44,7 @@
 
     /* ── HEADER ── */
     .hdr { background: var(--primary); color: #fff; padding: 12px 22px; display: flex; align-items: center; justify-content: space-between; }
+    .hdr-brand { color:inherit; text-decoration:none; }
     .hdr-brand h1 { font-size: 1.15rem; }
     .hdr-brand p { font-size: .72rem; opacity: .6; margin-top: 2px; }
     .hdr-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -674,10 +675,10 @@
      HEADER
 ══════════════════════════════════════════════ -->
 <header class="hdr">
-  <div class="hdr-brand">
+  <a class="hdr-brand" href="/" aria-label="Go to Costudio home">
     <h1>Costudio</h1>
     <p>Know your costs. Price correctly.</p>
-  </div>
+  </a>
   <div class="hdr-right">
     <span class="cur-badge" id="hCur">$</span>
     <button class="hdr-btn" onclick="window.location.href='../workspace/'" aria-label="Back to collaborative workspace">Workspace</button>
