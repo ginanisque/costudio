@@ -1172,16 +1172,16 @@
     <div id="crmClientsView"><div id="clientList"></div></div>
     <div id="crmMeasurementsView" style="display:none">
       <div class="measurement-hero">
-        <div><h3>Measurement Studio</h3><p>Take measurements in person, receive a completed PatternMaker table, or send a blank table for a client or collaborator to complete.</p></div>
+        <div><h3>Measurement Studio</h3><p>Take measurements in person, receive a table from PatternMaker or another CAD system, or send a blank table for a client or collaborator to complete.</p></div>
         <div class="measurement-actions">
           <button type="button" class="btn btn-primary btn-sm" onclick="openMeasurementModal()">+ Take measurements</button>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('measurementImport').click()">Receive file</button>
-          <input type="file" id="measurementImport" accept=".mmt,.mtb,.json,.txt,application/json,text/plain" hidden onchange="importMeasurementFile(this.files[0])">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('measurementImport').click()">Receive CAD table</button>
+          <input type="file" id="measurementImport" hidden onchange="importMeasurementFile(this.files[0])">
         </div>
       </div>
       <div class="measurement-layout">
         <div class="card"><div class="card-hdr"><div><div class="card-title">Client measurement records</div><p class="small muted">Latest saved table for each client</p></div></div><div id="measurementRecordList"></div></div>
-        <div class="card"><div class="card-hdr"><div><div class="card-title">Standard templates</div><p class="small muted">Ginani or your own pattern system</p></div><button class="btn btn-primary btn-sm" onclick="openTemplateModal()">+ Custom</button></div><div id="measurementTemplateList"></div></div>
+        <div class="card"><div class="card-hdr"><div><div class="card-title">Measurement templates</div><p class="small muted">Ginani or any text-based CAD measurement system</p></div><div class="measurement-actions"><button class="btn btn-secondary btn-sm" onclick="document.getElementById('measurementTemplateImport').click()">Import CAD template</button><button class="btn btn-primary btn-sm" onclick="openTemplateModal()">+ Create custom</button><input type="file" id="measurementTemplateImport" hidden onchange="importMeasurementTemplateFile(this.files[0])"></div></div><div id="measurementTemplateList"></div></div>
       </div>
     </div>
     <div id="crmOrdersView" style="display:none"><div id="allOrdersList"></div></div>
@@ -1254,7 +1254,7 @@
 <!-- CRM - CUSTOM MEASUREMENT TEMPLATE -->
 <div class="crm-modal-overlay" id="templateModalOverlay" style="display:none" onclick="if(event.target===this)closeTemplateModal()">
   <div class="crm-modal" style="max-width:700px">
-    <h3 id="templateModalTitle">Create custom standard template</h3>
+    <h3 id="templateModalTitle">Create custom measurement template</h3>
     <input type="hidden" id="tmId">
     <div class="g2">
       <div class="field"><label>Template name *</label><input id="tmName" placeholder="e.g. My womenswear block"></div>
@@ -1262,6 +1262,7 @@
       <div class="field"><label>Default unit</label><select id="tmUnit"><option value="in">Inches (in)</option><option value="cm">Centimetres (cm)</option></select></div>
     </div>
     <div class="detail-lbl" style="margin-top:12px">Fields</div>
+    <p class="small muted" style="margin-bottom:10px">Add fields manually, or import a text-based table exported by any CAD system. Costudio accepts JSON, CSV, TSV, TXT, MTB, MMT, and other filename extensions when their contents are readable text.</p>
     <div id="templateFieldList"></div>
     <button type="button" class="btn btn-secondary btn-sm" onclick="addTemplateField()">+ Add measurement</button>
     <div class="modal-actions">
@@ -3833,10 +3834,77 @@ function parseMeasurementText(text) {
   const fields=[];const values={};let unit='in';lines.slice(takenAt+1,fitAt<0?lines.length:fitAt).forEach((line,i)=>{const m=line.match(/^([^:]+):\s*(.*?)\s+(cm|in)$/);if(!m)return;const key=slugKey(m[1],i);unit=m[3];fields.push({key,label:m[1],code:''});values[key]=m[2]===''?'':(Number.isFinite(Number(m[2]))?Number(m[2]):m[2]);});
   if(!fields.length)return null;return {format:'costudio.measurement-text',version:1,client:read('Client'),template:{id:'import-'+Date.now(),name:read('Template')||'Imported text table',category:'Imported',unit,fields},measurements:values,fitAnalysis:fitAt>=0?lines.slice(fitAt+1,notesAt<0?lines.length:notesAt).join('\n').trim():'',notes:notesAt>=0?lines.slice(notesAt+1).join('\n').trim():'',takenAt:read('Date')||new Date().toISOString().slice(0,10),takenBy:read('Taken/received by'),source:'imported'};
 }
+function splitCadRow(line,delimiter) {
+  const cells=[];let cell='',quoted=false;
+  for(let i=0;i<line.length;i++){const char=line[i];if(char==='"'){if(quoted&&line[i+1]==='"'){cell+='"';i++;}else quoted=!quoted;}else if(char===delimiter&&!quoted){cells.push(cell.trim());cell='';}else cell+=char;}
+  cells.push(cell.trim());return cells;
+}
+function measurementFileStem(fileName) { return String(fileName||'Imported CAD table').replace(/\.[^.]+$/,'').trim()||'Imported CAD table'; }
+function parseDelimitedMeasurement(text,fileName='measurement-table') {
+  const lines=text.replace(/^\uFEFF/,'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  if(!lines.length)return null;
+  const delimiters=['\t',',',';','|'];
+  const delimiter=delimiters.map(d=>({d,count:lines.slice(0,8).reduce((n,line)=>n+(line.split(d).length-1),0)})).sort((a,b)=>b.count-a.count)[0];
+  if(!delimiter||delimiter.count<1)return null;
+  const rows=lines.map(line=>splitCadRow(line,delimiter.d)).filter(row=>row.some(Boolean));
+  if(!rows.length)return null;
+  const header=rows[0].map(x=>x.toLowerCase());
+  const labelHeader=header.findIndex(x=>/^(measurement|measure|name|label|dimension|point)$/.test(x));
+  const valueHeader=header.findIndex(x=>/^(value|size|amount|measurement value)$/.test(x));
+  const codeHeader=header.findIndex(x=>/^(code|variable|key|id|parameter)$/.test(x));
+  const unitHeader=header.findIndex(x=>/^units?$/.test(x));
+  const fields=[],values={};let unit='in';
+  if(labelHeader>=0){
+    rows.slice(1).forEach((row,i)=>{const label=(row[labelHeader]||'').trim();if(!label)return;const key=slugKey(label,i);const raw=valueHeader>=0?(row[valueHeader]||''):'';fields.push({key,label,code:codeHeader>=0?(row[codeHeader]||''):''});values[key]=raw!==''&&Number.isFinite(Number(raw))?Number(raw):raw;if(unitHeader>=0&&/^cm$/i.test(row[unitHeader]||''))unit='cm';});
+  } else if(rows.length>1&&rows[0].length>2&&rows[1].slice(0,rows[0].length).filter(x=>x!==''&&Number.isFinite(Number(x))).length>=Math.ceil(rows[0].length/2)) {
+    rows[0].forEach((label,i)=>{label=label.trim();if(!label)return;const key=slugKey(label,i),raw=rows[1][i]||'';fields.push({key,label,code:''});values[key]=raw!==''&&Number.isFinite(Number(raw))?Number(raw):raw;});
+  } else {
+    let start=0;
+    if(rows.length>1&&rows[0][0]&&!Number.isFinite(Number(rows[0][1]))&&rows[1][0]&&rows[1].length>1)start=1;
+    rows.slice(start).forEach((row,i)=>{const label=(row[0]||'').trim();if(!label)return;const key=slugKey(label,i),raw=row[1]||'';fields.push({key,label,code:row[3]||row[2]||''});values[key]=raw!==''&&Number.isFinite(Number(raw))?Number(raw):raw;});
+  }
+  if(!fields.length)return null;
+  return {format:'cad.text-table',version:1,client:'',template:{id:'import-'+Date.now(),name:measurementFileStem(fileName),category:'Imported CAD table',unit,fields},measurements:values,fitAnalysis:'',notes:`Imported from ${fileName}`,takenAt:new Date().toISOString().slice(0,10),source:'imported'};
+}
+async function readCadMeasurementFile(file) {
+  if(!file)throw new Error('Choose a measurement file.');
+  if(file.size>1024*1024)throw new Error('Measurement files must be 1 MB or smaller.');
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let text;
+  if(bytes[0]===0xFF&&bytes[1]===0xFE)text=new TextDecoder('utf-16le').decode(bytes);
+  else text=new TextDecoder('utf-8',{fatal:false}).decode(bytes);
+  const sample=text.slice(0,4096),controls=[...sample].filter(c=>{const n=c.charCodeAt(0);return n===0||(n<9)||(n>13&&n<32);}).length;
+  if(sample.includes('\u0000')||controls>Math.max(4,sample.length*.05))throw new Error('This appears to be a proprietary binary CAD file. Export its measurement table as CSV, TSV, TXT, JSON, MTB, or MMT, then import that exported file.');
+  return text;
+}
+function parseCadMeasurement(text,fileName) {
+  const extension=(String(fileName).match(/\.([^.]+)$/)||[])[1]?.toLowerCase()||'';
+  let parsed=null;
+  try{parsed=JSON.parse(text);}catch(_){}
+  if(parsed)return parsed;
+  if(text.replace(/^\uFEFF/,'').startsWith('COSTUDIO MEASUREMENT TABLE'))return parseMeasurementText(text);
+  if(extension==='mmt'||extension==='mtb'&&text.includes('\t'))return parseMmt(text);
+  return parseDelimitedMeasurement(text,fileName);
+}
+async function importMeasurementTemplateFile(file) {
+  if(!file)return;
+  try{
+    const text=await readCadMeasurementFile(file),p=normaliseImportedMeasurement(parseCadMeasurement(text,file.name),file.name);
+    if(!p)throw new Error('No measurement fields were found. The file may contain only a header; export a populated text measurement table from the CAD software.');
+    openTemplateModal();
+    document.getElementById('tmName').value=p.template.name||measurementFileStem(file.name);
+    document.getElementById('tmCategory').value=p.template.category||`Imported from .${file.name.split('.').pop()||'file'}`;
+    document.getElementById('tmUnit').value=p.template.unit;
+    document.getElementById('templateFieldList').innerHTML='';
+    p.template.fields.forEach(addTemplateField);
+    showToast(`${p.template.fields.length} measurement fields imported — review and save`);
+  }catch(e){alert(e.message||'This CAD measurement table could not be read.');}
+  finally{document.getElementById('measurementTemplateImport').value='';}
+}
 async function importMeasurementFile(file) {
-  if(!file)return;if(file.size>1024*1024){alert('Measurement files must be 1 MB or smaller.');document.getElementById('measurementImport').value='';return;}if(!CRM.customers.length){openClientModal();alert('Add the client first, then receive their measurement file.');document.getElementById('measurementImport').value='';return;}try{const text=await file.text();let p;try{p=JSON.parse(text);}catch(_){p=text.startsWith('COSTUDIO MEASUREMENT TABLE')?parseMeasurementText(text):parseMmt(text);}p=normaliseImportedMeasurement(p,file.name);if(!p)throw new Error('Unsupported measurement table');
+  if(!file)return;if(!CRM.customers.length){openClientModal();alert('Add the client first, then receive their measurement file.');document.getElementById('measurementImport').value='';return;}try{const text=await readCadMeasurementFile(file);let p=normaliseImportedMeasurement(parseCadMeasurement(text,file.name),file.name);if(!p)throw new Error('No measurement fields were found. The file may contain only a header; export a populated text measurement table from the CAD software.');
     const t={id:'import-'+Date.now(),name:p.template.name,category:p.template.category,unit:p.template.unit,fields:p.template.fields,builtin:true,session:true};CRM.sessionTemplates=[t];const matched=CRM.customers.find(c=>(p.email&&c.email?.toLowerCase()===String(p.email).toLowerCase())||(p.client&&c.name.toLowerCase()===String(p.client).toLowerCase()));renderMeasurementStudio();openMeasurementModal(matched?.id);document.getElementById('mmTemplate').value=t.id;document.getElementById('measUnit').value=t.unit;document.getElementById('mmSource').value='imported';document.getElementById('mmDate').value=p.takenAt;document.getElementById('mmTakenBy').value=p.takenBy;document.getElementById('mmFitAnalysis').value=p.fitAnalysis;document.getElementById('measNotes').value=p.notes;renderMeasurementInputs(p.measurements);showToast(matched?'Measurement table matched to '+matched.name:'Measurement table received — choose the client and save');
-  }catch(e){alert('This file could not be read as a Costudio .mtb, PatternMaker .mmt, or measurement text table.');}finally{document.getElementById('measurementImport').value='';}
+  }catch(e){alert(e.message||'This CAD measurement table could not be read.');}finally{document.getElementById('measurementImport').value='';}
 }
 
 function normaliseImportedMeasurement(p,fileName='measurement-table') {
