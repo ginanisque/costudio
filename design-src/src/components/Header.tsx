@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getCurrentCollab } from '@/utils/collab';
 import { listMessages, getLastOpenTs } from '@/utils/storage';
-import { Calculator, Home, LogOut, Mail, SunMedium, Moon } from 'lucide-react';
+import { Calculator, LayoutDashboard, LogOut, Mail, SunMedium, Moon } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { getUser, logout } from '@/utils/auth';
 import { COMPETITION_DEMO } from '@/config/mode';
@@ -56,8 +56,8 @@ const Header: React.FC<Props> = ({ onOpenSettings }) => {
           
           <div className="flex items-center space-x-2">
             <span className="hidden lg:inline text-sm font-medium text-slate-700">{account?.businessName}</span>
-            <Button asChild variant="ghost" size="sm" title="Costudio home">
-              <a href="../"><Home className="h-4 w-4" /><span className="hidden md:inline">Home</span></a>
+            <Button asChild variant="ghost" size="sm" title="Back to collaborative workspace">
+              <a href="../"><LayoutDashboard className="h-4 w-4" /><span className="hidden md:inline">Workspace</span></a>
             </Button>
             <Button asChild variant="outline" size="sm" title="Open Costing Studio">
               <a href="../costing/"><Calculator className="h-4 w-4" /><span className="hidden md:inline">Costing</span></a>
