@@ -1,9 +1,15 @@
-// Load the Supabase Edge Runtime globals (including Deno) for editor and deploy-time type checking.
-import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+type EdgeRuntime = {
+  env: { get(name: string): string | undefined };
+  serve(handler: (request: Request) => Response | Promise<Response>): void;
+};
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
-const TEXT_MODEL = Deno.env.get('OPENAI_TEXT_MODEL') || 'gpt-5.6-terra';
-const APP_ORIGINS = (Deno.env.get('APP_ORIGINS') || '*')
+// Access the Supabase Deno runtime without making the repository's regular
+// TypeScript checker resolve Deno-only globals or JSR type imports.
+const edgeRuntime = (globalThis as typeof globalThis & { Deno: EdgeRuntime }).Deno;
+
+const OPENAI_API_KEY = edgeRuntime.env.get('OPENAI_API_KEY') || '';
+const TEXT_MODEL = edgeRuntime.env.get('OPENAI_TEXT_MODEL') || 'gpt-5.6-terra';
+const APP_ORIGINS = (edgeRuntime.env.get('APP_ORIGINS') || '*')
   .split(',')
   .map(value => value.trim())
   .filter(Boolean);
@@ -179,7 +185,7 @@ async function inspirationImages(url: URL, cors: HeadersInit) {
   })) }, 200, cors);
 }
 
-Deno.serve(async request => {
+edgeRuntime.serve(async request => {
   const cors = corsHeaders(request);
   if (request.method === 'OPTIONS') return new Response('ok', { headers: cors.headers });
   if (!cors.allowed) return json({ error: 'Origin not allowed.' }, 403, cors.headers);
