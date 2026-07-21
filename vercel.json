@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "costudio-(?<deployment>.*)-eunice-graces-projects\\.vercel\\.app"
+        }
+      ],
+      "destination": "https://costudio-bice.vercel.app/:path*",
+      "permanent": false
+    }
+  ]
+}
