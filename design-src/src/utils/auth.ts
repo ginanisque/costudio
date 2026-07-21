@@ -18,7 +18,7 @@ async function resolveUser(): Promise<AuthUser | null> {
   if (!supabase) return null;
   const { data: authData } = await supabase.auth.getUser();
   const account = authData.user;
-  if (!account?.email) return null;
+  if (!account) return null;
   const { data: membership, error } = await supabase
     .from('business_members')
     .select('business_id')
@@ -32,11 +32,12 @@ async function resolveUser(): Promise<AuthUser | null> {
     .select('name')
     .eq('id', membership.business_id)
     .single();
-  const businessName = business?.name || account.user_metadata?.business_name || account.email.split('@')[0];
+  const accountEmail = account.email || 'demo@costudio.local';
+  const businessName = business?.name || account.user_metadata?.business_name || accountEmail.split('@')[0];
   setBusinessId(membership.business_id);
   return {
     id: account.id,
-    email: account.email,
+    email: accountEmail,
     name: account.user_metadata?.display_name || businessName,
     businessId: membership.business_id,
     businessName,

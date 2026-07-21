@@ -6,6 +6,7 @@ import { listMessages, getLastOpenTs } from '@/utils/storage';
 import { Calculator, Home, LogOut, Mail, SunMedium, Moon } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { getUser, logout } from '@/utils/auth';
+import { COMPETITION_DEMO } from '@/config/mode';
 
 type Props = {
   onOpenSettings?: () => void;
@@ -77,9 +78,13 @@ const Header: React.FC<Props> = ({ onOpenSettings }) => {
             <Button variant="outline" size="sm">
               Creator Mode
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => void logout()} title="Sign out">
-              <LogOut className="h-4 w-4" /><span className="hidden md:inline">Sign out</span>
-            </Button>
+            {COMPETITION_DEMO ? (
+              <Badge variant="outline" className="hidden md:inline-flex">Competition Demo</Badge>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => void logout()} title="Sign out">
+                <LogOut className="h-4 w-4" /><span className="hidden md:inline">Sign out</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>

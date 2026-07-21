@@ -89,11 +89,20 @@ Build the deployable Design Studio with `npm run build`, then copy the contents 
 
 ## Demo flow
 
+Competition mode currently creates an isolated anonymous Supabase workspace in
+each judge's browser, so no registration screen is shown. Anonymous sign-ins
+must be enabled under **Supabase Dashboard → Authentication → Providers →
+Anonymous Sign-Ins**.
+
+To restore normal authentication after judging, set `COMPETITION_DEMO` to
+`false` in `design-src/src/config/mode.ts` and `costing/index.html`, restore the
+landing-page Account link, rebuild Design, and publish the generated assets.
+
 1. Open the Costudio landing page and choose **Design a Collection**.
 2. Create or load a collection and attach at least one fabric.
 3. Show the Collaboration card and copy the room invitation link.
 4. Select **Continue to Costing Studio**.
-5. Sign in if needed. Costing Studio opens Materials with the collection and fabrics already imported.
+5. Costing Studio opens Materials with the collection and fabrics already imported.
 6. Enter material prices and quantities, then show Time and Pricing.
 7. Save the priced product and show it on the dashboard.
 
@@ -112,7 +121,7 @@ The production architecture follows the official GPT-5.6 guidance by using the R
 
 ## Current boundaries
 
-- The Design and Costing services currently use separate authentication mechanisms.
+- Design, Costing, and CRM share one Supabase session; competition mode creates that session anonymously.
 - Production collaboration requires Supabase configuration; local collaboration can use the Express/WebSocket server.
 - The cross-studio handoff requires both modules to be served from the same web origin.
 

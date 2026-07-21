@@ -1494,6 +1494,7 @@ function blankState() {
 
 let S   = blankState();
 let cur = '$';
+const COMPETITION_DEMO = true;
 let currentUser = null;  // { id, name, email, cur, curCode, unit, lastLogin }
 let csrfToken   = '';    // refreshed on every login / session-check response
 let inventory   = [];    // materials catalogue — persists across new-product resets
@@ -2028,6 +2029,7 @@ async function bootApp() {
     renderInventory();
     const importedDesign = importDesignHandoff();
     if (crmWorkspace && !importedDesign) {
+      if (COMPETITION_DEMO) await API.request('api/demo.php','POST',{});
       await loadCRM();
       const crmView = ['clients','measurements','orders'].includes(route.get('view')) ? route.get('view') : 'clients';
       setCrmView(crmView);
@@ -2062,7 +2064,14 @@ window.onload = async () => {
         // A session created in Design Studio is shared on the same origin. Bridge
         // it into the existing PHP session so Costing and Measurements retain
         // their mature MySQL workflows during the Supabase migration.
-        const { data: sessionData } = await window.costudioAuth.auth.getSession();
+        let { data: sessionData } = await window.costudioAuth.auth.getSession();
+        if (!sessionData.session && COMPETITION_DEMO) {
+          const anonymous = await window.costudioAuth.auth.signInAnonymously({
+            options: { data: { business_name: 'Costudio Demo', display_name: 'Demo Designer' } }
+          });
+          if (anonymous.error) throw anonymous.error;
+          sessionData = { session: anonymous.data.session };
+        }
         const accessToken = sessionData.session?.access_token || '';
         const bridged = accessToken
           ? await API.request('api/auth.php', 'POST', { action: 'supabase_session', accessToken })

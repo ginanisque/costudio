@@ -13,7 +13,7 @@
     if (contextPromise) return contextPromise;
     contextPromise = (async () => {
       const { data: auth } = await client.auth.getUser();
-      if (!auth.user?.email) return null;
+      if (!auth.user?.id) return null;
       const { data: membership, error } = await client.from('business_members').select('business_id').eq('user_id', auth.user.id).limit(1).maybeSingle();
       if (error || !membership) return null;
       const { data: business } = await client.from('businesses').select('*').eq('id', membership.business_id).single();
@@ -24,7 +24,7 @@
   }
 
   function userShape(ctx) {
-    return { id: ctx.auth.id, name: ctx.business.name, email: ctx.auth.email, cur: ctx.business.currency_symbol, curCode: ctx.business.currency_code, unit: ctx.business.measurement_unit, lastLogin: ctx.auth.last_sign_in_at };
+    return { id: ctx.auth.id, name: ctx.business.name, email: ctx.auth.email || 'demo@costudio.local', cur: ctx.business.currency_symbol, curCode: ctx.business.currency_code, unit: ctx.business.measurement_unit, lastLogin: ctx.auth.last_sign_in_at };
   }
   function productRow(r) { return { id:Number(r.id),name:r.name,cat:r.category,date:dateLabel(r.created_at),cogs:number(r.cogs),pricing:r.pricing,fabrics:r.fabrics||[],trims:r.trims||[],time:r.production_time,rate:number(r.hourly_rate) }; }
   function clientRow(r) { return { id:Number(r.id),name:r.name,email:r.email||'',phone:r.phone||'',measurements:r.measurements||{},preferences:r.preferences||'',notes:r.notes||'',createdAt:r.created_at }; }
