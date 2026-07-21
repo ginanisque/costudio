@@ -313,6 +313,8 @@
     /* ── CRM MODAL ── */
     .crm-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:900; padding:16px; }
     .crm-modal { background:#fff; border-radius:14px; width:100%; max-width:540px; max-height:90vh; overflow-y:auto; padding:28px 24px; box-shadow:0 20px 60px rgba(0,0,0,.25); }
+    .order-workflow-row { display:grid; grid-template-columns:minmax(125px,1.3fr) minmax(125px,1fr) 120px 132px auto; gap:7px; align-items:center; padding:8px; border:1px solid var(--border); border-radius:8px; background:var(--surface); }
+    .order-workflow-row > * { min-width:0; }
     .crm-modal h3 { margin:0 0 20px; font-size:1.1rem; }
     .crm-modal .g2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
     .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; padding-top:16px; border-top:1.5px solid var(--border); }
@@ -522,6 +524,7 @@
       .product-card { flex-direction: column; align-items: flex-start; }
       .product-card > *:last-child { align-self: flex-end; }
       .crm-modal { padding: 20px 16px; }
+      .order-workflow-row { grid-template-columns:1fr 1fr; }
       .stat { padding: 10px 8px; }
       .stat-val { font-size: 1.2rem; }
       .measurement-hero { align-items:flex-start;flex-direction:column; }
@@ -1299,7 +1302,7 @@
      CRM — ORDER MODAL
 ══════════════════════════════════════════════ -->
 <div class="crm-modal-overlay" id="orderModalOverlay" style="display:none" onclick="if(event.target===this)closeOrderModal()">
-  <div class="crm-modal">
+  <div class="crm-modal" style="max-width:900px">
     <h3 id="orderModalTitle">New Order</h3>
     <input type="hidden" id="omId">
 
@@ -1340,8 +1343,17 @@
 
     <div class="field">
       <label>Due date *</label>
-      <input type="date" id="omDueDate" required>
+      <input type="date" id="omDueDate" required onchange="syncWorkflowDueDate(this.value)">
       <div class="hint">This deadline will also appear as a To do task in the shared Workspace.</div>
+    </div>
+
+    <div class="field">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">
+        <div><label style="margin:0">Production workflow</label><div class="hint">Assign each stage and update it as work progresses.</div></div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addOrderWorkflowTask()">+ Other task</button>
+      </div>
+      <div id="omWorkflowProgress" style="margin-bottom:10px"></div>
+      <div id="omWorkflowTasks" style="display:grid;gap:8px"></div>
     </div>
 
     <div class="g2">
@@ -3562,21 +3574,25 @@ const GINANI_TEMPLATES = [
   { id:'ginani-male', name:'GINANI MEN', category:'ADULT MALE', unit:'in', builtin:true, fields:[] }
 ];
 
-const CRM = { customers: [], orders: [], templates: [], clientDesigns: [], sessionTemplates: [], view: 'clients' };
+const CRM = { customers: [], orders: [], templates: [], clientDesigns: [], orderTasks: [], members: [], sessionTemplates: [], view: 'clients' };
 
 function allMeasurementTemplates() { return [...GINANI_TEMPLATES, ...CRM.templates, ...CRM.sessionTemplates]; }
 
 async function loadCRM() {
-  const [cRes, oRes, tRes, dRes] = await Promise.all([
+  const [cRes, oRes, tRes, dRes, taskRes, memberRes] = await Promise.all([
     API.request('api/customers.php'),
     API.request('api/orders.php'),
     API.request('api/measurement-templates.php'),
     API.request('api/client-designs.php'),
+    API.request('api/order-tasks.php'),
+    API.request('api/team-members.php'),
   ]);
   CRM.customers = (cRes?.ok && Array.isArray(cRes.data)) ? cRes.data : [];
   CRM.orders    = (oRes?.ok && Array.isArray(oRes.data)) ? oRes.data : [];
   CRM.templates = (tRes?.ok && Array.isArray(tRes.data)) ? tRes.data : [];
   CRM.clientDesigns = (dRes?.ok && Array.isArray(dRes.data)) ? dRes.data : [];
+  CRM.orderTasks = (taskRes?.ok && Array.isArray(taskRes.data)) ? taskRes.data : [];
+  CRM.members = (memberRes?.ok && Array.isArray(memberRes.data)) ? memberRes.data : [];
   renderClients();
   const requestedClient = Number(new URLSearchParams(location.search).get('client')) || 0;
   if (requestedClient) requestAnimationFrame(() => {
@@ -4083,10 +4099,11 @@ function renderClientDetail(c, orders) {
   } else {
     html += orders.map(o => {
     const qtyStr = (o.quantity && o.quantity > 1) ? ` ×${o.quantity}` : '';
+    const workflow = orderWorkflowProgress(o.id);
     return `
       <div class="order-row">
         ${statusBadge(o.status, o.id)}
-        <div class="order-prod">${esc(o.productName)}${qtyStr}</div>
+        <div class="order-prod"><div>${esc(o.productName)}${qtyStr}</div>${workflow.tasks.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:4px"><div style="width:90px;height:5px;border-radius:9px;background:var(--border);overflow:hidden"><div style="height:100%;width:${workflow.percent}%;background:var(--accent)"></div></div><span style="font-size:.68rem;color:var(--muted)">${workflow.percent}% · ${workflow.done}/${workflow.tasks.length}</span></div>`:''}</div>
         <div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end">
           <div class="order-price">${esc(o.currency)}${(o.priceAgreed||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           ${payBadge(o)}
@@ -4127,6 +4144,7 @@ function renderAllOrders() {
           ? '<span style="color:var(--muted);font-size:.73rem">Made for Stock</span>'
           : `<span class="aor-customer">${esc(o.customerName || '—')}</span>`;
         const qtyLine = (o.quantity && o.quantity > 1) ? ` · <strong>×${o.quantity}</strong>` : '';
+        const workflow = orderWorkflowProgress(o.id);
         return `
         <div class="all-orders-row" style="padding:10px 16px;grid-template-columns:auto auto 1fr auto auto 90px">
           ${typeBadge}
@@ -4134,6 +4152,7 @@ function renderAllOrders() {
           <div>
             <div style="font-weight:600;font-size:.87rem">${esc(o.productName)}${qtyLine}</div>
             ${clientLine}
+            ${workflow.tasks.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:4px"><div style="width:110px;height:6px;border-radius:9px;background:var(--border);overflow:hidden"><div style="height:100%;width:${workflow.percent}%;background:var(--accent)"></div></div><span style="font-size:.68rem;color:var(--muted)">${workflow.percent}% complete</span></div>`:''}
           </div>
           <div style="text-align:right">
             <div class="order-price">${esc(o.currency)}${(o.priceAgreed||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
@@ -4287,6 +4306,68 @@ function omHideQtyHint() {
   if (hint) hint.style.display = 'none';
 }
 
+const ORDER_WORKFLOW_STAGES = [
+  {stageKey:'design',title:'Design'},
+  {stageKey:'patternmaking',title:'Patternmaking'},
+  {stageKey:'sewing',title:'Sewing'},
+  {stageKey:'finishing',title:'Finishing'},
+];
+let omWorkflowTasks = [];
+let omRemovedWorkflowTaskIds = [];
+
+function workflowDefaults(dueDate='') {
+  return ORDER_WORKFLOW_STAGES.map(stage=>({...stage,status:'todo',assigneeId:'',dueDate,priority:'normal'}));
+}
+
+function workflowMemberOptions(selectedId='') {
+  const members=CRM.members.length?CRM.members:[{user_id:currentUser?.id,display_name:currentUser?.name||'Workspace owner'}];
+  return `<option value="">Unassigned</option>`+members.filter(member=>member.user_id).map(member=>`<option value="${esc(member.user_id)}" ${member.user_id===selectedId?'selected':''}>${esc(member.display_name||member.email||'Team member')}</option>`).join('');
+}
+
+function updateOrderWorkflowTask(index,field,value) {
+  if(!omWorkflowTasks[index])return;
+  omWorkflowTasks[index][field]=value;
+  if(field==='status')renderOrderWorkflowTasks();
+}
+
+function syncWorkflowDueDate(value) {
+  omWorkflowTasks.forEach(task=>{if(!task.dueDate)task.dueDate=value;});
+  renderOrderWorkflowTasks();
+}
+
+function addOrderWorkflowTask() {
+  omWorkflowTasks.push({stageKey:`other-${Date.now().toString(36)}`,title:'Delivery / Embroidery',status:'todo',assigneeId:'',dueDate:document.getElementById('omDueDate').value||'',priority:'normal',custom:true});
+  renderOrderWorkflowTasks();
+}
+
+function removeOrderWorkflowTask(index) {
+  const task=omWorkflowTasks[index];
+  if(!task?.custom)return;
+  if(task.id)omRemovedWorkflowTaskIds.push(task.id);
+  omWorkflowTasks.splice(index,1);
+  renderOrderWorkflowTasks();
+}
+
+function renderOrderWorkflowTasks() {
+  const host=document.getElementById('omWorkflowTasks');if(!host)return;
+  const done=omWorkflowTasks.filter(task=>task.status==='done').length;
+  const percent=omWorkflowTasks.length?Math.round(done/omWorkflowTasks.length*100):0;
+  document.getElementById('omWorkflowProgress').innerHTML=`<div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:4px"><strong>${percent}% complete</strong><span>${done} of ${omWorkflowTasks.length} tasks</span></div><div style="height:8px;border-radius:99px;background:var(--border);overflow:hidden"><div style="height:100%;width:${percent}%;background:var(--accent);transition:width .2s"></div></div>`;
+  host.innerHTML=omWorkflowTasks.map((task,index)=>`<div class="order-workflow-row">
+    ${task.custom?`<input aria-label="Task name" value="${esc(task.title)}" oninput="updateOrderWorkflowTask(${index},'title',this.value)" placeholder="Delivery, embroidery…">`:`<strong style="font-size:.82rem">${esc(task.title)}</strong>`}
+    <select aria-label="Assignee" onchange="updateOrderWorkflowTask(${index},'assigneeId',this.value)">${workflowMemberOptions(task.assigneeId)}</select>
+    <select aria-label="Task status" onchange="updateOrderWorkflowTask(${index},'status',this.value)"><option value="todo" ${task.status==='todo'?'selected':''}>To do</option><option value="in_progress" ${task.status==='in_progress'?'selected':''}>In progress</option><option value="done" ${task.status==='done'?'selected':''}>Done</option></select>
+    <input aria-label="Task due date" type="date" value="${esc(task.dueDate||'')}" onchange="updateOrderWorkflowTask(${index},'dueDate',this.value)">
+    ${task.custom?`<button type="button" class="btn btn-danger btn-sm" onclick="removeOrderWorkflowTask(${index})">×</button>`:'<span></span>'}
+  </div>`).join('');
+}
+
+function orderWorkflowProgress(orderId) {
+  const tasks=CRM.orderTasks.filter(task=>task.orderId===orderId);
+  const done=tasks.filter(task=>task.status==='done').length;
+  return {tasks,done,percent:tasks.length?Math.round(done/tasks.length*100):0};
+}
+
 function openOrderModal(preCustomerId = null, orderId = null) {
   omHideQtyHint();
   const o = orderId ? CRM.orders.find(x => x.id === orderId) : null;
@@ -4305,6 +4386,9 @@ function openOrderModal(preCustomerId = null, orderId = null) {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('omDate').value = o?.orderedAt ? o.orderedAt.slice(0,10) : today;
   document.getElementById('omDueDate').value = o?.dueDate || '';
+  const existingTasks=o?CRM.orderTasks.filter(task=>task.orderId===o.id):[];
+  omWorkflowTasks=existingTasks.length?existingTasks.map(task=>({...task,custom:!ORDER_WORKFLOW_STAGES.some(stage=>stage.stageKey===task.stageKey)})):workflowDefaults(o?.dueDate||'');
+  omRemovedWorkflowTaskIds=[];
 
   // Build customer dropdown
   const sel = document.getElementById('omCustomer');
@@ -4330,6 +4414,7 @@ function openOrderModal(preCustomerId = null, orderId = null) {
   document.getElementById('omPaymentStatus').value = o?.paymentStatus || 'unpaid';
   document.getElementById('omDeposit').value        = o?.depositAmount || '';
   omPaymentToggle();
+  renderOrderWorkflowTasks();
 
   document.getElementById('orderModalOverlay').style.display = 'flex';
 }
@@ -4408,6 +4493,15 @@ async function saveOrder() {
   const r = await API.request('api/orders.php', 'POST', payload);
   btn.disabled = false; btn.textContent = 'Save Order';
   if (!r?.ok) { alert(r?.data?.error || 'Could not save order.'); return; }
+  const savedOrderId=Number(r.data?.id)||payload.id;
+  const taskResult=await API.request('api/order-tasks.php','POST',{
+    orderId:savedOrderId,
+    productName,
+    customerName:CRM.customers.find(client=>client.id===customerId)?.name||'',
+    tasks:omWorkflowTasks.filter(task=>task.title.trim()).map(task=>({stageKey:task.stageKey,title:task.title.trim(),status:task.status,assigneeId:task.assigneeId||null,dueDate:task.dueDate||payload.dueDate,priority:task.priority||'normal'})),
+    removedIds:omRemovedWorkflowTaskIds,
+  });
+  if(!taskResult?.ok){alert(`The order was saved, but its production tasks could not be saved: ${taskResult?.data?.error||'Unknown error'}`);}
   closeOrderModal();
   await loadCRM();
 }

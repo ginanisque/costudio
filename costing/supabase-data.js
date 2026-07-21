@@ -37,6 +37,7 @@
   function materialRow(r) { return { id:Number(r.id),name:r.name,type:r.type,unit:r.unit,pricePerUnit:number(r.price_per_unit),qtyInStock:number(r.qty_in_stock),source:r.source,customerName:r.customer_name||'',notes:r.notes||'',createdAt:r.created_at }; }
   function orderRow(r) { return { id:Number(r.id),orderType:r.order_type,customerId:r.customer_id===null?null:Number(r.customer_id),customerName:r.crm_clients?.name||'',productName:r.product_name,productId:r.product_id===null?null:Number(r.product_id),quantity:Number(r.quantity)||1,priceAgreed:number(r.price_agreed),currency:r.currency,status:r.status,paymentStatus:r.payment_status,depositAmount:number(r.deposit_amount),notes:r.notes||'',materials:r.materials||[],orderedAt:r.ordered_at,dueDate:r.due_date||'',updatedAt:r.updated_at }; }
   function clientDesignRow(r) { const d=r.data||{};return {id:d.id||r.client_id,clientId:String(d.clientId||''),clientName:d.clientName||'',title:d.title||'Custom client piece',prompt:d.prompt||'',imageUrl:d.imageUrl||'',createdAt:d.createdAt||''}; }
+  function orderTaskRow(r) { const parts=String(r.source_id||'').split(':');return {id:r.id,orderId:Number(parts[0])||0,stageKey:parts.slice(1).join(':')||'other',title:r.title,description:r.description||'',status:r.status||'todo',priority:r.priority||'normal',assigneeId:r.assignee_id||'',dueDate:r.due_date||'',updatedAt:r.updated_at}; }
 
   async function syncOrderTask(ctx, order) {
     const sourceId = String(order.id);
@@ -141,6 +142,36 @@
         const {data,error}=await query.order('created_at',{ascending:false});
         return error?fail(error.message):ok((data||[]).map(clientDesignRow).filter(item=>item.clientId));
       }
+      if (file === 'team-members.php') {
+        const result=await client.rpc('list_business_members',{target_business_id:bid});
+        return result.error?fail(result.error.message):ok(result.data||[]);
+      }
+      if (file === 'order-tasks.php') {
+        const orderId=Number(url.searchParams.get('order_id')||body?.orderId)||0;
+        if (method === 'DELETE') {
+          const taskId=url.searchParams.get('id');
+          if(!taskId)return fail('Task id is required.');
+          const {error}=await client.from('workspace_tasks').delete().eq('id',taskId).eq('business_id',bid).eq('source_type','order_stage');
+          return error?fail(error.message):ok({ok:true});
+        }
+        if (method === 'GET') {
+          let query=client.from('workspace_tasks').select('*').eq('business_id',bid).eq('source_type','order_stage');
+          if(orderId)query=query.like('source_id',`${orderId}:%`);
+          const {data,error}=await query.order('created_at');
+          return error?fail(error.message):ok((data||[]).map(orderTaskRow));
+        }
+        if(!orderId)return fail('Order id is required.');
+        const tasks=Array.isArray(body.tasks)?body.tasks:[];
+        const rows=tasks.map((task,index)=>{
+          const rawKey=String(task.stageKey||`other-${index+1}`).toLowerCase().replace(/[^a-z0-9-]+/g,'-').replace(/^-|-$/g,'')||`other-${index+1}`;
+          return {business_id:bid,source_type:'order_stage',source_id:`${orderId}:${rawKey}`,title:String(task.title||'Order task').slice(0,180),description:String(task.description||`${body.productName||'Order'}${body.customerName?` · ${body.customerName}`:''} · Production stage`),status:['todo','in_progress','done'].includes(task.status)?task.status:'todo',priority:task.priority||'normal',assignee_id:task.assigneeId||null,due_date:task.dueDate||null,created_by:ctx.auth.id};
+        });
+        if(rows.length){const {error}=await client.from('workspace_tasks').upsert(rows,{onConflict:'business_id,source_type,source_id'});if(error)return fail(error.message);}
+        const removedIds=Array.isArray(body.removedIds)?body.removedIds.filter(Boolean):[];
+        if(removedIds.length){const {error}=await client.from('workspace_tasks').delete().in('id',removedIds).eq('business_id',bid).eq('source_type','order_stage');if(error)return fail(error.message);}
+        const {data,error}=await client.from('workspace_tasks').select('*').eq('business_id',bid).eq('source_type','order_stage').like('source_id',`${orderId}:%`).order('created_at');
+        return error?fail(error.message):ok((data||[]).map(orderTaskRow));
+      }
       if (file === 'measurement-templates.php') {
         if (method === 'GET') {const {data,error}=await client.from('crm_measurement_templates').select('*').eq('business_id',bid).order('name');return error?fail(error.message):ok((data||[]).map(templateRow));}
         if (method === 'DELETE') {const {error}=await client.from('crm_measurement_templates').delete().eq('id',idFrom(rawUrl)).eq('business_id',bid);return error?fail(error.message):ok({ok:true});}
@@ -153,7 +184,7 @@
       }
       if (file === 'orders.php') {
         if (method === 'GET') {let q=client.from('crm_orders').select('*,crm_clients(name)').eq('business_id',bid).order('ordered_at',{ascending:false});const cid=Number(url.searchParams.get('customer_id'))||0;if(cid)q=q.eq('customer_id',cid);const {data,error}=await q;return error?fail(error.message):ok((data||[]).map(orderRow));}
-        if (method === 'DELETE') {const orderId=idFrom(rawUrl);const {error}=await client.from('crm_orders').delete().eq('id',orderId).eq('business_id',bid);if(error)return fail(error.message);await client.from('workspace_tasks').delete().eq('business_id',bid).eq('source_type','order').eq('source_id',String(orderId));return ok({ok:true});}
+        if (method === 'DELETE') {const orderId=idFrom(rawUrl);const {error}=await client.from('crm_orders').delete().eq('id',orderId).eq('business_id',bid);if(error)return fail(error.message);await client.from('workspace_tasks').delete().eq('business_id',bid).eq('source_type','order').eq('source_id',String(orderId));await client.from('workspace_tasks').delete().eq('business_id',bid).eq('source_type','order_stage').like('source_id',`${orderId}:%`);return ok({ok:true});}
         if (method === 'PATCH') {const values={};if(body.status!==undefined)values.status=body.status;if(body.paymentStatus!==undefined)values.payment_status=body.paymentStatus;if(body.depositAmount!==undefined)values.deposit_amount=number(body.depositAmount);if(body.priceAgreed!==undefined)values.price_agreed=number(body.priceAgreed);if(body.dueDate!==undefined)values.due_date=body.dueDate||null;const {data,error}=await client.from('crm_orders').update(values).eq('id',Number(body.id)).eq('business_id',bid).select('*,crm_clients(name)').single();if(error)return fail(orderError(error));await syncOrderTask(ctx,data);return ok({ok:true});}
         const values={customer_id:body.customerId||null,product_name:body.productName,product_id:body.productId||null,order_type:body.orderType||'bespoke',quantity:Number(body.quantity)||1,price_agreed:number(body.priceAgreed),currency:body.currency||ctx.business.currency_symbol,status:body.status||'quote',payment_status:body.paymentStatus||'unpaid',deposit_amount:number(body.depositAmount),notes:body.notes||'',materials:body.materials||[],ordered_at:body.orderedAt?new Date(body.orderedAt).toISOString():new Date().toISOString(),due_date:body.dueDate||null};
         const query=body.id?client.from('crm_orders').update(values).eq('id',Number(body.id)).eq('business_id',bid):client.from('crm_orders').insert({business_id:bid,...values});
