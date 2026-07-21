@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getCurrentCollab } from '@/utils/collab';
 import { listMessages, getLastOpenTs } from '@/utils/storage';
-import { Calculator, LayoutDashboard, LogOut, Mail, SunMedium, Moon } from 'lucide-react';
+import { Calculator, FolderUp, LayoutDashboard, LogOut, Mail, SunMedium, Moon } from 'lucide-react';
 import { useTheme } from '@/components/theme-provider';
 import { getUser, logout } from '@/utils/auth';
 import { COMPETITION_DEMO } from '@/config/mode';
@@ -61,6 +61,9 @@ const Header: React.FC<Props> = ({ onOpenSettings }) => {
             </Button>
             <Button asChild variant="outline" size="sm" title="Open Costing Studio">
               <a href="../costing/"><Calculator className="h-4 w-4" /><span className="hidden md:inline">Costing</span></a>
+            </Button>
+            <Button asChild variant="outline" size="sm" title="Open production handoffs">
+              <a href="../workspace/#production"><FolderUp className="h-4 w-4" /><span className="hidden xl:inline">Production</span></a>
             </Button>
             <Button variant="outline" size="sm" onClick={()=> setTheme(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light')} title={`Theme: ${theme}`} aria-label="Toggle theme">
               {theme === 'dark' ? <Moon className="h-4 w-4" /> : <SunMedium className="h-4 w-4" />}
