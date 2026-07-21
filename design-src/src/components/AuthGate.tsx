@@ -9,6 +9,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState('');
 
   async function refresh() {
+    const { data: sessionData } = await supabase?.auth.getSession() || { data: { session: null } };
+    if (!COMPETITION_DEMO && sessionData.session?.user?.is_anonymous) {
+      await supabase?.auth.signOut();
+    }
     let user = await checkAuth();
     if (!user && supabase && COMPETITION_DEMO) {
       const result = await supabase.auth.signInAnonymously({

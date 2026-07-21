@@ -49,11 +49,18 @@ signed in; individual studios do not maintain separate accounts.
 
 ### Competition demo
 
-After signing in, open the **Clients** card from the Costudio homepage and
-select **Load Demo Admin**. This adds sample client profiles, Ginani measurement
-records, and orders to the signed-in business without deleting existing data.
-The CRM can take measurements, send blank `.mtb`, `.mmt`, or text tables, and
-receive completed files.
+Costudio uses one shared Supabase login for Workspace, Design, Costing,
+Measurements, Clients, and Orders. Judges can choose **Use demo** on
+`/auth.html` to enter the persistent demonstration workspace with:
+
+- Email: `demo@ginani.net`
+- Password: `CostudioDemo2026!`
+
+Create this user once in **Supabase Dashboard > Authentication > Users > Add
+user**, mark it confirmed, and use `Costudio Demo` as its business/display name.
+The database trigger creates its business workspace automatically. The demo
+account receives starter tasks and sample CRM records without deleting saved
+work. Rotate or remove the public password after judging.
 
 On Vercel, Costing and CRM use `costing/supabase-data.js` and Supabase RLS
 directly. PHP, MySQL configuration, SQL setup files, and editable source are
@@ -97,15 +104,9 @@ Build the deployable Design Studio with `npm run build`, then copy the contents 
 
 ## Demo flow
 
-Competition mode currently creates an isolated anonymous Supabase workspace in
-each judge's browser, so no registration screen is shown. Anonymous sign-ins
-must be enabled under **Supabase Dashboard → Authentication → Providers →
-Anonymous Sign-Ins**.
-
-To restore normal authentication after judging, set `COMPETITION_DEMO` to
-`false` in `index.html`, `design-src/src/config/mode.ts`, and
-`costing/index.html`, restore the
-landing-page Account link, rebuild Design, and publish the generated assets.
+Authentication is required so judging changes persist in the same recoverable
+workspace. The public demo credentials above are shown only on the shared login
+page; individual modules never ask for a second login.
 
 1. Open the Costudio landing page and choose **Design a Collection**.
 2. Create or load a collection and attach at least one fabric.

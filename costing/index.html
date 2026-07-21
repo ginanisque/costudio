@@ -1494,7 +1494,7 @@ function blankState() {
 
 let S   = blankState();
 let cur = '$';
-const COMPETITION_DEMO = true;
+const COMPETITION_DEMO = false;
 let currentUser = null;  // { id, name, email, cur, curCode, unit, lastLogin }
 let csrfToken   = '';    // refreshed on every login / session-check response
 let inventory   = [];    // materials catalogue — persists across new-product resets
@@ -2029,7 +2029,7 @@ async function bootApp() {
     renderInventory();
     const importedDesign = importDesignHandoff();
     if (crmWorkspace && !importedDesign) {
-      if (COMPETITION_DEMO) await API.request('api/demo.php','POST',{});
+      if (COMPETITION_DEMO || currentUser?.email === 'demo@ginani.net') await API.request('api/demo.php','POST',{});
       await loadCRM();
       const crmView = ['clients','measurements','orders'].includes(route.get('view')) ? route.get('view') : 'clients';
       setCrmView(crmView);
@@ -2052,26 +2052,36 @@ window.onload = async () => {
     window.location.replace('/auth.html?mode=reset&next=' + encodeURIComponent('/costing/'));
     return;
   } else {
-    // Check for active PHP session
+    // Require the same Supabase account used by Workspace and Design, then
+    // bridge it into Costing's PHP compatibility session.
     try {
+      let { data: sessionData } = await window.costudioAuth.auth.getSession();
+      if (!COMPETITION_DEMO && sessionData.session?.user?.is_anonymous) {
+        await window.costudioAuth.auth.signOut();
+        sessionData = { session: null };
+      }
+      if (!sessionData.session && COMPETITION_DEMO) {
+        const anonymous = await window.costudioAuth.auth.signInAnonymously({
+          options: { data: { business_name: 'Costudio Demo', display_name: 'Demo Designer' } }
+        });
+        if (anonymous.error) throw anonymous.error;
+        sessionData = { session: anonymous.data.session };
+      }
+      if (!sessionData.session) {
+        const loader = document.getElementById('appLoader');
+        if (loader) loader.style.display = 'none';
+        window.location.replace('/auth.html?next=' + encodeURIComponent(window.location.pathname + window.location.search));
+        return;
+      }
       const r = await API.request('api/auth.php?action=me');
-      if (r?.data?.loggedIn) {
+      const sessionEmail = (sessionData.session.user.email || '').toLowerCase();
+      const phpEmail = (r?.data?.user?.email || '').toLowerCase();
+      if (r?.data?.loggedIn && sessionEmail && phpEmail === sessionEmail) {
         currentUser = r.data.user;
         csrfToken   = r.data.csrfToken || '';
         hideAuthModal();
         await bootApp();
       } else {
-        // A session created in Design Studio is shared on the same origin. Bridge
-        // it into the existing PHP session so Costing and Measurements retain
-        // their mature MySQL workflows during the Supabase migration.
-        let { data: sessionData } = await window.costudioAuth.auth.getSession();
-        if (!sessionData.session && COMPETITION_DEMO) {
-          const anonymous = await window.costudioAuth.auth.signInAnonymously({
-            options: { data: { business_name: 'Costudio Demo', display_name: 'Demo Designer' } }
-          });
-          if (anonymous.error) throw anonymous.error;
-          sessionData = { session: anonymous.data.session };
-        }
         const accessToken = sessionData.session?.access_token || '';
         const bridged = accessToken
           ? await API.request('api/auth.php', 'POST', { action: 'supabase_session', accessToken })

@@ -56,7 +56,7 @@
     <main class="main">
       <header class="topbar">
         <div style="display:flex;align-items:center;gap:11px"><button id="menuButton" class="btn icon-btn mobile-menu" aria-label="Open menu">☰</button><div><h1 id="topWorkspace">Workspace</h1><p>Collaborative fashion operations</p></div></div>
-        <div class="top-actions"><button id="quickTask" class="btn btn-primary">+ New task</button><div id="userAvatar" class="avatar">C</div></div>
+        <div class="top-actions"><button id="quickTask" class="btn btn-primary">+ New task</button><button id="signOut" class="btn" type="button">Sign out</button><div id="userAvatar" class="avatar">C</div></div>
       </header>
 
       <div class="content">
@@ -104,7 +104,7 @@
   <script>
     const SUPABASE_URL='https://krbedficypujbukslgif.supabase.co';
     const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyYmVkZmljeXB1amJ1a3NsZ2lmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NjM2MzgsImV4cCI6MjEwMDEzOTYzOH0.BSHiK0GMqFMk_Go0vmWuQ4FuIf4p0MPlUYAK5cINGwU';
-    const COMPETITION_DEMO=true;
+    const COMPETITION_DEMO=false;
     const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
     const ACTIVE_KEY='costudio.activeBusinessId';
     let currentUser=null,currentBusiness=null,workspaces=[],members=[],tasks=[],messages=[],taskChannel=null,messageChannel=null;
@@ -117,6 +117,7 @@
 
     async function ensureSession(){
       let {data:{session}}=await db.auth.getSession();
+      if(session?.user?.is_anonymous&&!COMPETITION_DEMO){await db.auth.signOut();session=null;}
       if(!session&&!COMPETITION_DEMO){location.replace('/auth.html?next=%2F');return new Promise(()=>{});}
       if(!session){const result=await db.auth.signInAnonymously({options:{data:{business_name:'Costudio Demo',display_name:'Demo Designer'}}});if(result.error)throw result.error;session=result.data.session;}
       currentUser=session.user;
@@ -143,7 +144,7 @@
 
     async function loadTasks(){
       const {data,error}=await db.from('workspace_tasks').select('*').eq('business_id',currentBusiness.id).order('updated_at',{ascending:false});
-      if(error){showSetup('Run Supabase migration 004 to activate shared tasks and messages.');tasks=[];}else{tasks=data||[];hideSetup();if(!tasks.length&&currentUser.is_anonymous)await seedDemoTasks();}
+      if(error){showSetup('Run Supabase migration 004 to activate shared tasks and messages.');tasks=[];}else{tasks=data||[];hideSetup();if(!tasks.length&&(currentUser.is_anonymous||currentUser.email==='demo@ginani.net'))await seedDemoTasks();}
       renderTasks();
     }
 
@@ -212,7 +213,7 @@
     }
     function showSetup(text){$('setupNotice').textContent=text;$('setupNotice').classList.remove('hidden')}function hideSetup(){$('setupNotice').classList.add('hidden')}
     function bind(){
-      $('quickTask').onclick=()=>openTask();$('welcomeTask').onclick=()=>openTask();$('cancelTask').onclick=()=>$('taskDialog').close();$('deleteTask').onclick=deleteTask;$('taskForm').onsubmit=saveTask;$('messageForm').onsubmit=sendMessage;$('taskSearch').oninput=renderTasks;$('menuButton').onclick=()=>$('sidebar').classList.toggle('open');
+      $('quickTask').onclick=()=>openTask();$('welcomeTask').onclick=()=>openTask();$('cancelTask').onclick=()=>$('taskDialog').close();$('deleteTask').onclick=deleteTask;$('taskForm').onsubmit=saveTask;$('messageForm').onsubmit=sendMessage;$('taskSearch').oninput=renderTasks;$('menuButton').onclick=()=>$('sidebar').classList.toggle('open');$('signOut').onclick=async()=>{await db.auth.signOut();location.replace('/auth.html?next=%2F')};
       $('workspaceSwitch').onchange=event=>{localStorage.setItem(ACTIVE_KEY,event.target.value);location.reload()};
       document.querySelectorAll('.column').forEach(column=>{column.addEventListener('dragover',event=>{event.preventDefault();column.classList.add('drag-over')});column.addEventListener('dragleave',()=>column.classList.remove('drag-over'));column.addEventListener('drop',event=>{event.preventDefault();column.classList.remove('drag-over');moveTask(event.dataTransfer.getData('text/plain'),column.dataset.status)});});
     }
