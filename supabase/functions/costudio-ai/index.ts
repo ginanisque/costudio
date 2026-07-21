@@ -61,6 +61,38 @@ async function openAi(path: string, payload: unknown) {
   return { ok: response.ok, status: response.status, body };
 }
 
+async function referenceBlob(source: string) {
+  if (source.startsWith('data:')) {
+    const match = source.match(/^data:([^;,]+);base64,(.+)$/);
+    if (!match) throw new Error('Invalid reference image.');
+    const bytes = Uint8Array.from(atob(match[2]), character => character.charCodeAt(0));
+    return new Blob([bytes], { type: match[1] || 'image/jpeg' });
+  }
+  const response = await fetch(source);
+  if (!response.ok) throw new Error('A saved reference image could not be downloaded.');
+  return await response.blob();
+}
+
+async function openAiImageEdit(prompt: string, sources: string[], size: string) {
+  if (!OPENAI_API_KEY) return { ok: false, status: 500, body: { error: 'OPENAI_API_KEY is not configured.' } };
+  const form = new FormData();
+  form.set('model', 'gpt-image-2');
+  form.set('prompt', prompt);
+  form.set('size', size);
+  form.set('quality', 'medium');
+  for (let index = 0; index < sources.length; index += 1) {
+    const blob = await referenceBlob(sources[index]);
+    form.append('image[]', blob, `reference-${index + 1}.${blob.type.includes('png') ? 'png' : 'jpg'}`);
+  }
+  const response = await fetch('https://api.openai.com/v1/images/edits', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${OPENAI_API_KEY}` },
+    body: form,
+  });
+  const body = await response.json().catch(() => ({}));
+  return { ok: response.ok, status: response.status, body };
+}
+
 function extractJson(text: string): Record<string, unknown> | null {
   try {
     const start = text.indexOf('{');
@@ -121,16 +153,29 @@ async function generateText(request: Request, cors: HeadersInit) {
 }
 
 async function suggestPrompts(request: Request, cors: HeadersInit) {
-  const body = await request.json().catch(() => ({})) as { description?: string; images?: string[]; count?: number };
+  const body = await request.json().catch(() => ({})) as {
+    description?: string;
+    images?: string[];
+    fabricImages?: string[];
+    styleImages?: string[];
+    modelImages?: string[];
+    count?: number;
+  };
   if (!body.description || body.description.length < 5) return json({ error: 'A collection description is required.' }, 400, cors);
   const count = Math.max(1, Math.min(20, Number(body.count) || 8));
   const content: Array<Record<string, unknown>> = [{
     type: 'input_text',
     text: `Create ${count} production-ready prompts for fashion image generation. Each prompt describes one garment or look, silhouette, materials, palette, mood, lighting, backdrop, and realistic fabric drape. Exclude text, logos, watermarks, and anatomical errors. Return only a JSON array of strings.\n\nCollection: ${body.description}`,
   }];
-  for (const imageUrl of (body.images || []).slice(0, 4)) {
-    content.push({ type: 'input_image', image_url: imageUrl, detail: 'low' });
-  }
+  const addReferences = (label: string, sources: string[], limit: number) => {
+    if (!sources.length) return;
+    content.push({ type: 'input_text', text: label });
+    for (const imageUrl of sources.slice(0, limit)) content.push({ type: 'input_image', image_url: imageUrl, detail: 'high' });
+  };
+  addReferences('Fabric swatches and saved materials. Use their visible texture, weight, finish and drape:', body.fabricImages || [], 6);
+  const hasTypedReferences = Boolean(body.fabricImages?.length || body.styleImages?.length || body.modelImages?.length);
+  addReferences('The designer’s sketches, moodboards and previous style concepts. Preserve this design language without copying a single piece verbatim:', [...(body.styleImages || []), ...(hasTypedReferences ? [] : (body.images || []))], 4);
+  addReferences('Selected model references. Use them as casting and styling guidance:', body.modelImages || [], 2);
   const result = await openAi('responses', {
     model: TEXT_MODEL,
     instructions: 'You are a fashion art director and precise visual prompt writer.',
@@ -152,15 +197,31 @@ async function suggestPrompts(request: Request, cors: HeadersInit) {
 }
 
 async function generateImage(request: Request, cors: HeadersInit) {
-  const body = await request.json().catch(() => ({})) as { prompt?: string; size?: string };
+  const body = await request.json().catch(() => ({})) as {
+    prompt?: string;
+    size?: string;
+    fabricImages?: string[];
+    styleImages?: string[];
+    modelImages?: string[];
+  };
   if (!body.prompt || body.prompt.length < 3) return json({ error: 'A prompt is required.' }, 400, cors);
-  const result = await openAi('images/generations', {
-    model: 'gpt-image-1',
-    prompt: body.prompt,
-    size: body.size || '1024x1024',
-    n: 1,
-    response_format: 'b64_json',
-  });
+  const size = body.size === '1024x1024' ? body.size : '1024x1024';
+  const fabricImages = (body.fabricImages || []).slice(0, 6);
+  const styleImages = (body.styleImages || []).slice(0, 4);
+  const modelImages = (body.modelImages || []).slice(0, 2);
+  const sources = [...fabricImages, ...styleImages, ...modelImages];
+  const referenceGuide = sources.length
+    ? `\n\nUse the attached references in this order: ${fabricImages.length} fabric/material image(s), ${styleImages.length} designer sketch/style image(s), and ${modelImages.length} model/casting image(s). Create a new original garment image rather than a collage. Preserve material appearance and the designer's visual language.`
+    : '';
+  const result = sources.length
+    ? await openAiImageEdit(`${body.prompt}${referenceGuide}`, sources, size)
+    : await openAi('images/generations', {
+        model: 'gpt-image-2',
+        prompt: body.prompt,
+        size,
+        quality: 'medium',
+        n: 1,
+      });
   if (!result.ok) return json({ error: result.body }, result.status, cors);
   const data = (result.body as { data?: Array<{ b64_json?: string }> }).data || [];
   if (!data[0]?.b64_json) return json({ error: 'The image service returned no image.' }, 502, cors);
@@ -193,7 +254,7 @@ edgeRuntime.serve(async request => {
   const url = new URL(request.url);
   const route = url.pathname.split('/costudio-ai').pop() || '/';
   try {
-    if (route === '/api/status' || route === '/api/health') return json({ ok: true, hasKey: Boolean(OPENAI_API_KEY), model: TEXT_MODEL }, 200, cors.headers);
+    if (route === '/api/status' || route === '/api/health') return json({ ok: true, hasKey: Boolean(OPENAI_API_KEY), model: TEXT_MODEL, referenceUploads: true, imageModel: 'gpt-image-2' }, 200, cors.headers);
     if (route === '/api/generate-text' && request.method === 'POST') return await generateText(request, cors.headers);
     if (route === '/api/suggest-prompts' && request.method === 'POST') return await suggestPrompts(request, cors.headers);
     if (route === '/api/generate' && request.method === 'POST') return await generateImage(request, cors.headers);

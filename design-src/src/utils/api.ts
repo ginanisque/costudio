@@ -16,7 +16,16 @@ async function apiFetch(path: string, init: RequestInit = {}) {
 }
 
 
-export type GeneratePayload = { prompt: string; size?: "256x256" | "512x512" | "1024x1024" };
+export type CollectionReferences = {
+  fabricImages?: string[];
+  styleImages?: string[];
+  modelImages?: string[];
+};
+
+export type GeneratePayload = CollectionReferences & {
+  prompt: string;
+  size?: "256x256" | "512x512" | "1024x1024";
+};
 
 
 export async function generateImageViaProxy(payload: GeneratePayload): Promise<{ b64: string }> {
@@ -100,12 +109,20 @@ export async function improveProductContent(payload: {
   return body as { title: string; description: string };
 }
 
-export async function suggestPrompts(description: string, images: string[] = [], count = 8): Promise<string[]> {
+export async function suggestPrompts(
+  description: string,
+  images: string[] = [],
+  count = 8,
+  references: CollectionReferences = {},
+): Promise<string[]> {
   return retry(async () => {
+    const legacyImages = images.length
+      ? images
+      : [...(references.fabricImages || []), ...(references.styleImages || []), ...(references.modelImages || [])].slice(0, 4);
     const r = await apiFetch("/api/suggest-prompts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description, images, count }),
+      body: JSON.stringify({ description, images: legacyImages, count, ...references }),
     });
     const body = await r.json().catch(() => ({}));
     if (!r.ok) {

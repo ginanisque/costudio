@@ -7,6 +7,7 @@ import CollectionNotes from '@/components/CollectionNotes';
 import ImageGallery from '@/components/ImageGallery';
 import ProductUploader from '@/components/ProductUploader';
 import type { ProductItem } from '@/components/ProductUploader';
+import CollectionGenerator from '@/components/CollectionGenerator';
 import Catalogue from '@/components/Catalogue';
 import SessionSidebar from '@/components/SessionSidebar';
 import CollaborationPanel from '@/components/CollaborationPanel';
@@ -158,7 +159,7 @@ const Index = () => {
     const modelIds = stored?.modelIds || [];
     const models = modelsCatalog.filter(m => modelIds.includes(m.id));
     return { palette: paletteColors, fabrics, models };
-  }, [collection, collectionId]);
+  }, [collection, collectionId, activeTab]);
 
   const [settings, setSettings] = useLocalStorage('fashionAI.settings', {
     size: '1024x1024' as '256x256' | '512x512' | '1024x1024',
@@ -178,7 +179,7 @@ const Index = () => {
     };
     mark('profile', !!designerProfile, 'Profile');
     mark('collection', !!generatedTitle || !!generatedDescription, 'Collection');
-    mark('generate', images.length > 0, 'Upload');
+    mark('generate', images.length > 0, 'Generate');
     mark('gallery', images.length > 0, 'Gallery');
     // Export marked when visiting export tab with images present
     mark('export', activeTab === 'export' && images.length > 0, 'Export');
@@ -291,6 +292,19 @@ const Index = () => {
         };
       });
     });
+  };
+
+  const handleGeneratedCollection = (pieces: Array<{ prompt: string; imageUrl: string; title: string }>) => {
+    const created = pieces.map(piece => {
+      const id = crypto.randomUUID();
+      try {
+        const seq = nextPieceSeq();
+        savePiece({ id, seq, collectionId, prompt: piece.prompt, imageUrl: piece.imageUrl, createdAt: new Date().toISOString() });
+      } catch { /* keep the generated piece visible even if persistence fails */ }
+      return { id, prompt: piece.prompt, title: piece.title, description: piece.prompt, imageUrl: piece.imageUrl, selected: false };
+    });
+    setImages(previous => [...previous, ...created]);
+    setActiveTab('gallery');
   };
 
   const handleImageSelect = (id: string) => {
@@ -463,7 +477,7 @@ const Index = () => {
             steps={[
               { key: 'profile', label: 'Profile' },
               { key: 'collection', label: 'Collection' },
-              { key: 'generate', label: 'Upload' },
+              { key: 'generate', label: 'Generate' },
               { key: 'export', label: 'Export' },
               { key: 'social', label: 'Social' },
             ]}
@@ -622,6 +636,19 @@ const Index = () => {
 
           <TabsContent value="generate">
             <div className="space-y-6">
+              <CollectionGenerator
+                initialDescription={generatedDescription || collection?.inspiration || ''}
+                pieceCount={pieceCount}
+                onPieceCountChange={setPieceCount}
+                palette={attached.palette || []}
+                fabrics={attached.fabrics}
+                models={attached.models}
+                size={settings.size}
+                onGenerated={handleGeneratedCollection}
+              />
+              <div className="flex items-center gap-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <span className="h-px flex-1 bg-border" />or add existing product photography<span className="h-px flex-1 bg-border" />
+              </div>
               <div>
                 <h2 className="text-xl font-semibold mb-1">Upload Product Images</h2>
                 <p className="text-sm text-muted-foreground">
