@@ -24,6 +24,10 @@ Finally run `supabase/migrations/202607210003_workspace_collaboration.sql`. It
 adds owner/admin member management so an existing Costudio user can be added to
 the registered business workspace and switch into it from Design Settings.
 
+Run `supabase/migrations/202607210004_workspace_tasks.sql` to activate the
+homepage task board and realtime workspace messages. Both tables use the same
+business membership RLS boundary as Design, Costing, and CRM.
+
 If Costing's MySQL tables already existed before shared authentication was
 added, run `costing/migrations/001_add_supabase_uid.sql` once in phpMyAdmin.
 Fresh MySQL installations should use the updated `costing/setup.sql` instead.

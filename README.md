@@ -2,6 +2,10 @@
 
 Costudio is a collaborative operating workspace for independent fashion teams. It connects the creative work of developing a collection with the commercial work of costing, pricing, client management, and production planning.
 
+The root page is the working environment rather than a marketing page. Its
+sidebar connects Design, Costing, Measurements, Clients, and Orders, while the
+overview provides a shared task board and realtime team updates.
+
 ## The problem
 
 Small fashion teams commonly design in one set of tools and calculate costs in disconnected spreadsheets. Creative decisions such as fabrics and collection structure are copied manually, context gets lost, and products are often underpriced.
@@ -99,7 +103,8 @@ must be enabled under **Supabase Dashboard → Authentication → Providers →
 Anonymous Sign-Ins**.
 
 To restore normal authentication after judging, set `COMPETITION_DEMO` to
-`false` in `design-src/src/config/mode.ts` and `costing/index.html`, restore the
+`false` in `index.html`, `design-src/src/config/mode.ts`, and
+`costing/index.html`, restore the
 landing-page Account link, rebuild Design, and publish the generated assets.
 
 1. Open the Costudio landing page and choose **Design a Collection**.
