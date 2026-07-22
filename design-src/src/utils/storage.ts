@@ -58,6 +58,7 @@ export type StoredPiece = {
   clientId?: string;
   clientName?: string;
   kind?: 'collection' | 'client';
+  costing?: import('./productCosting').ProductCosting;
   createdAt: string;
   updatedAt?: string;
 };

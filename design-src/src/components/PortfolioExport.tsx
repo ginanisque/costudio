@@ -12,7 +12,23 @@ import { generateSocialPack } from '@/utils/api';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
-export type ExportImage = { src: string; caption?: string; id?: string };
+export type ExportImage = { src: string; caption?: string; description?: string; price?: string; id?: string };
+
+const escapeHtml = (value?: string) => String(value || '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
+const publicLookDescription = (value?: string) => {
+  const cleaned = String(value || '')
+    .replace(/^(?:full[- ]length\s+)?(?:(?:high[- ]fashion|commercial|editorial)\s+)*(?:fashion\s+)?(?:portrait|image|campaign image|photograph)\s+of\s+[^,.]+?\s+(?:wearing|in)\s+/i, '')
+    .replace(/\b(?:use|using|preserve|match)\b[^.]{0,180}\b(?:reference image|identity|model reference)\b[^.]*\.?/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : '';
+};
 
 type DesignerInfo = { name?: string; role?: string; bio?: string; address?: string; website?: string; email?: string; phone?: string; instagram?: string; twitter?: string; tiktok?: string; logo?: string };
 
@@ -38,7 +54,7 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
   const [includeImages, setIncludeImages] = useState(true);
   const [layoutByCollection, setLayoutByCollection] = useState<Record<string, 'grid' | 'hero'>>({});
   const [brandLogo, setBrandLogo] = useState<string>(designer?.logo || '');
-  const [captionTemplate, setCaptionTemplate] = useState<string>('{index}. {caption}');
+  const [captionTemplate, setCaptionTemplate] = useState<string>('{index}. {caption}\n{description}\n{price}');
   const [social, setSocial] = useState<{ headline?: string; press_blurb?: string; tweet?: string; instagram?: { caption?: string; hashtags?: string[] } } | null>(null);
   const [cardLogo, setCardLogo] = useState<string>(designer?.logo || '');
   React.useEffect(()=> {
@@ -231,6 +247,8 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
     const exportedImages = includeImages ? images.map((image, index) => ({
       id: image.id || `look-${index + 1}`,
       caption: image.caption || '',
+      description: publicLookDescription(image.description),
+      price: image.price || '',
       file: `images/look-${String(index + 1).padStart(2, '0')}.png`,
       src: image.src,
     })) : [];
@@ -254,7 +272,7 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
         twitter: designer.twitter || '',
         tiktok: designer.tiktok || '',
       } : null,
-      images: exportedImages.map(({ id, caption, file }) => ({ id, caption, file })),
+      images: exportedImages.map(({ id, caption, description, price, file }) => ({ id, caption, description, price, file })),
       collections: coll.map((c) => {
         const pal = c.paletteId ? palettes.find(p => p.id === c.paletteId) : undefined;
         const fabs = (c.fabricIds || []).map(fid => fabrics.find(f => f.id === fid)).filter(Boolean);
@@ -294,37 +312,36 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
     ].join('\n');
 
     // Build printable HTML catalogue
-    const css = `@page { size: A4 portrait; margin: 10mm; } html,body { margin:0; padding:0; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: system-ui, sans-serif; font-size:11pt; } h1,h2 { margin: 0 0 8px; } .page { width:190mm; height:277mm; box-sizing:border-box; overflow:hidden; break-after:page; page-break-after:always; position:relative; } .page:last-child { break-after:auto; page-break-after:auto; } .palette { display:flex; gap:6px; margin:6px 0; } .sw { width:16px; height:16px; border:1px solid #999; border-radius:3px; } .section { margin: 10px 0 16px; } .grid { height:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:6mm; } .grid>div { min-width:0; min-height:0; display:flex; flex-direction:column; } .grid .img { width:100%; height:118mm; object-fit:contain; border-radius:6px; } .img { display:block; max-width:100%; height:auto; object-fit:contain; border-radius:6px; } .hero .img { width:100%; height:277mm; object-fit:contain; } .caption { font-size:10pt; line-height:1.3; color:#555; margin-top:3px; } .meta { font-size:10pt; line-height:1.45; color:#444; } .chip { display:inline-block; border:1px solid #ccc; padding:2px 6px; border-radius:12px; font-size:10pt; margin-right:4px; } .hero { position:relative; } .hero-title { position:absolute; bottom:12px; left:12px; background:rgba(255,255,255,.84); padding:6px 10px; border-radius:8px; font-weight:600; } .logo { position:absolute; top:12px; right:12px; max-width:105px; max-height:52px; }`;
+    const css = `@page { size:A4 portrait; margin:10mm; } * { box-sizing:border-box; } html,body { margin:0; padding:0; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; font-family:system-ui,sans-serif; font-size:10pt; color:#1f2937; } h1,h2,h3,p { margin-top:0; } h1 { font-size:24pt; margin-bottom:5mm; } h2 { font-size:18pt; margin-bottom:3mm; } .intro { position:relative; border-bottom:1px solid #d1d5db; padding:0 32mm 6mm 0; margin-bottom:7mm; break-inside:avoid; page-break-inside:avoid; } .collection { margin:0 0 8mm; } .collection-head { border-left:3px solid #0f766e; padding:2mm 0 2mm 4mm; margin-bottom:5mm; break-inside:avoid; page-break-inside:avoid; } .palette { display:flex; gap:2mm; margin:3mm 0; } .sw { width:5mm; height:5mm; border:1px solid #999; border-radius:2px; } .section { margin:3mm 0; } .looks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6mm 5mm; align-items:start; } .look { min-width:0; break-inside:avoid; page-break-inside:avoid; } .look .img { display:block; width:100%; height:91mm; object-fit:contain; background:#f8fafc; border-radius:4px; } .caption { font-size:9pt; line-height:1.35; color:#4b5563; margin-top:2mm; white-space:pre-line; } .meta { font-size:10pt; line-height:1.45; color:#4b5563; white-space:pre-line; } .chip { display:inline-block; border:1px solid #ccc; padding:1mm 2mm; border-radius:12px; font-size:9pt; margin:0 1mm 1mm 0; } .hero { position:relative; height:245mm; break-after:page; page-break-after:always; } .hero .img { width:100%; height:100%; object-fit:contain; } .hero-title { position:absolute; bottom:12px; left:12px; background:rgba(255,255,255,.84); padding:6px 10px; border-radius:8px; font-weight:600; } .logo { position:absolute; top:0; right:0; max-width:28mm; max-height:16mm; }`;
     const renderCaption = (img: ExportImage, i: number, collectionTitle: string) => {
       const ctx: Record<string,string> = {
         index: String(i + 1),
         caption: img.caption || '',
+        description: publicLookDescription(img.description),
+        price: img.price || '',
         collection: collectionTitle,
         portfolio: manifest.portfolio.title,
       };
-      return captionTemplate.replace(/\{(\w+)\}/g, (_, k) => ctx[k] ?? '');
+      return escapeHtml(captionTemplate.replace(/\{(\w+)\}/g, (_, k) => ctx[k] ?? ''));
     };
     const htmlParts: string[] = [`<html><head><meta charset="utf-8"/><title>${manifest.portfolio.title}</title><style>${css}</style></head><body>`];
-    htmlParts.push(`<div class="page" style="position:relative"><h1>${manifest.portfolio.title}</h1><div class="meta">${manifest.portfolio.description || ''}</div>${brandLogo ? `<img class="logo" src="${brandLogo}"/>` : ''}</div>`);
+    htmlParts.push(`<header class="intro"><h1>${escapeHtml(manifest.portfolio.title)}</h1><div class="meta">${escapeHtml(manifest.portfolio.description)}</div>${brandLogo ? `<img class="logo" src="${brandLogo}"/>` : ''}</header>`);
     selectedCollections.forEach((c) => {
       const pal = c.paletteId ? palettes.find(p=>p.id===c.paletteId) : undefined;
       const fabs = (c.fabricIds||[]).map(fid=> fabrics.find(f=> f?.id===fid)).filter((f): f is NonNullable<typeof f> => !!f);
       const layout = layoutByCollection[c.id] || 'grid';
       if (layout === 'hero' && includeImages && images.length>0) {
         const hero = images[0];
-        htmlParts.push(`<div class="page hero"><img class="img" src="${hero.src}"/><div class="hero-title">${c.title || c.data?.name || ''}</div></div>`);
+        htmlParts.push(`<div class="hero"><img class="img" src="${hero.src}"/><div class="hero-title">${escapeHtml(c.title || c.data?.name || '')}</div></div>`);
       }
-      htmlParts.push(`<div class="page"><h2>${c.title || c.data?.name || ''}</h2><div class="meta">${c.description || c.data?.inspiration || ''}</div>`);
+      htmlParts.push(`<section class="collection"><header class="collection-head"><h2>${escapeHtml(c.title || c.data?.name || '')}</h2><div class="meta">${escapeHtml(c.description || c.data?.inspiration || '')}</div>`);
       if (pal) htmlParts.push(`<div class="section"><div class="palette">${pal.colors.slice(0,18).map(col=>`<span class="sw" style="background:${col}"></span>`).join('')}</div></div>`);
-      if (fabs.length>0) htmlParts.push(`<div class="section">${fabs.map(f=>`<span class="chip">${f.name}</span>`).join(' ')}</div>`);
-      htmlParts.push(`</div>`);
+      if (fabs.length>0) htmlParts.push(`<div class="section">${fabs.map(f=>`<span class="chip">${escapeHtml(f.name)}</span>`).join(' ')}</div>`);
+      htmlParts.push(`</header>`);
       if (includeImages && images.length>0) {
-        const perPage = 4;
-        for(let i=0;i<images.length;i+=perPage){
-          const chunk = images.slice(i, i+perPage);
-          htmlParts.push(`<div class="page"><div class="grid">${chunk.map((img,idx)=>`<div><img class="img" src="${img.src}"/><div class="caption">${renderCaption(img, i+idx, c.title || c.data?.name || '')}</div></div>`).join('')}</div></div>`);
-        }
+        htmlParts.push(`<div class="looks">${images.map((img,index)=>`<article class="look"><img class="img" src="${img.src}"/><div class="caption">${renderCaption(img, index, c.title || c.data?.name || '')}</div></article>`).join('')}</div>`);
       }
+      htmlParts.push(`</section>`);
     });
     htmlParts.push(`</body></html>`);
     const catalogueHtml = htmlParts.join('');
@@ -384,28 +401,32 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
     const title = portfolioData.title || selectedCollections[0].title || selectedCollections[0].data?.name || 'Catalogue';
     const css = `
       @page { size: A4 portrait; margin: 10mm; }
+      * { box-sizing:border-box; }
       html, body { margin:0; padding:0; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-family: system-ui, sans-serif; font-size:11pt; }
-      h1,h2 { margin: 0 0 8px; }
-      .page { width:190mm; height:277mm; box-sizing:border-box; overflow:hidden; break-after:page; page-break-after:always; position:relative; }
-      .page:last-child { break-after:auto; page-break-after:auto; }
-      .palette { display:flex; gap:6px; margin:6px 0; }
-      .sw { width:16px; height:16px; border:1px solid #999; border-radius:3px; }
-      .section { margin: 10px 0 16px; }
-      .grid { height:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:6mm; }
-      .grid > div { min-width:0; min-height:0; display:flex; flex-direction:column; }
-      .grid .img { width:100%; height:118mm; object-fit:contain; border-radius:6px; }
-      .img { display:block; max-width:100%; height:auto; object-fit:contain; border-radius:6px; }
-      .caption { font-size:10pt; line-height:1.3; color:#555; margin-top:3px; }
-      .meta { font-size:10pt; line-height:1.45; color:#444; }
-      .chip { display:inline-block; border:1px solid #ccc; padding:2px 6px; border-radius:12px; font-size:10pt; margin-right:4px; }
-      .hero { position: relative; }
-      .hero .img { width:100%; height:277mm; object-fit:contain; }
+      body { -webkit-print-color-adjust:exact; print-color-adjust:exact; font-family:system-ui,sans-serif; font-size:10pt; color:#1f2937; }
+      h1,h2,h3,p { margin-top:0; }
+      h1 { font-size:24pt; margin-bottom:5mm; }
+      h2 { font-size:18pt; margin-bottom:3mm; }
+      .intro { position:relative; border-bottom:1px solid #d1d5db; padding:0 32mm 6mm 0; margin-bottom:6mm; break-inside:avoid; page-break-inside:avoid; }
+      .designer { background:#f8fafc; padding:4mm; margin-bottom:7mm; border-radius:4px; break-inside:avoid; page-break-inside:avoid; }
+      .collection { margin:0 0 8mm; }
+      .collection-head { border-left:3px solid #0f766e; padding:2mm 0 2mm 4mm; margin-bottom:5mm; break-inside:avoid; page-break-inside:avoid; }
+      .palette { display:flex; gap:2mm; margin:3mm 0; }
+      .sw { width:5mm; height:5mm; border:1px solid #999; border-radius:2px; }
+      .section { margin:3mm 0; }
+      .looks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6mm 5mm; align-items:start; }
+      .look { min-width:0; break-inside:avoid; page-break-inside:avoid; }
+      .look .img { display:block; width:100%; height:91mm; object-fit:contain; background:#f8fafc; border-radius:4px; }
+      .caption { font-size:9pt; line-height:1.35; color:#4b5563; margin-top:2mm; white-space:pre-line; }
+      .meta { font-size:10pt; line-height:1.45; color:#4b5563; white-space:pre-line; }
+      .chip { display:inline-block; border:1px solid #ccc; padding:1mm 2mm; border-radius:12px; font-size:9pt; margin:0 1mm 1mm 0; }
+      .hero { position:relative; height:245mm; break-after:page; page-break-after:always; }
+      .hero .img { width:100%; height:100%; object-fit:contain; }
       .hero-title { position:absolute; bottom:12px; left:12px; background: rgba(255,255,255,.8); padding:6px 10px; border-radius:8px; font-weight:600; }
-      .logo { position:absolute; top:12px; right:12px; max-width:105px; max-height:52px; }
+      .logo { position:absolute; top:0; right:0; max-width:28mm; max-height:16mm; }
     `;
     const html = [`<html><head><title>${title}</title><style>${css}</style></head><body>`];
-    html.push(`<div class="page" style="position:relative"><h1>${title}</h1><div class="meta">${portfolioData.description || ''}</div>${brandLogo ? `<img class="logo" src="${brandLogo}"/>` : ''}</div>`);
+    html.push(`<header class="intro"><h1>${escapeHtml(title)}</h1><div class="meta">${escapeHtml(portfolioData.description)}</div>${brandLogo ? `<img class="logo" src="${brandLogo}"/>` : ''}</header>`);
     if (designer?.name || designer?.bio || designer?.website || designer?.email || designer?.phone || designer?.address || designer?.instagram || designer?.twitter || designer?.tiktok) {
       const link = (url: string, label?: string) => `<a href="${url}" target="_blank" rel="noopener">${label || url}</a>`;
       const handleUrl = (platform: 'instagram'|'twitter'|'tiktok', handle?: string) => {
@@ -425,11 +446,11 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
         designer?.phone ? `<div><strong>Phone:</strong> ${designer.phone}</div>` : '',
         designer?.address ? `<div style="white-space:pre-wrap"><strong>Address:</strong> ${designer.address.replace(/</g,'&lt;')}</div>` : '',
       ].filter(Boolean).join('');
-      html.push(`<div class="page"><h2>Designer</h2>` +
-        `${designer?.name ? `<div class="meta"><strong>${designer.name}</strong></div>` : ''}` +
+      html.push(`<section class="designer"><h2>Designer</h2>` +
+        `${designer?.name ? `<div class="meta"><strong>${escapeHtml(designer.name)}</strong></div>` : ''}` +
         `${designer?.bio ? `<div style="margin-top:8px; white-space:pre-wrap; line-height:1.5">${(designer.bio || '').replace(/</g,'&lt;')}</div>` : ''}` +
         `${contacts ? `<div style="margin-top:10px" class="meta">${contacts}</div>` : ''}` +
-      `</div>`);
+      `</section>`);
     }
 
     // Business card (PNG download) and print handled elsewhere via buttons; HTML here only prints portfolio.
@@ -437,11 +458,13 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
       const ctx: Record<string,string> = {
         index: String(i + 1),
         caption: img.caption || '',
+        description: publicLookDescription(img.description),
+        price: img.price || '',
         collection: collectionTitle,
         portfolio: title,
         id: img.id || '',
       };
-      return captionTemplate.replace(/\{(\w+)\}/g, (_, k) => ctx[k] ?? '');
+      return escapeHtml(captionTemplate.replace(/\{(\w+)\}/g, (_, k) => ctx[k] ?? ''));
     };
     selectedCollections.forEach((c) => {
       const palette = c.paletteId ? pal.find(p=>p.id===c.paletteId) : undefined;
@@ -450,17 +473,17 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
       // Optional cover/hero page
       if (layout === 'hero' && includeImages && images.length>0) {
         const hero = images[0];
-        html.push(`<div class="page hero">`+
+        html.push(`<div class="hero">`+
           `<img class="img" src="${hero.src}"/>`+
-          `<div class="hero-title">${c.title || c.data?.name || ''}</div>`+
+          `<div class="hero-title">${escapeHtml(c.title || c.data?.name || '')}</div>`+
           `</div>`);
       }
-      html.push(`<div class="page"><h2>${c.title || c.data?.name || ''}</h2><div class="meta">${c.description || c.data?.inspiration || ''}</div>`);
+      html.push(`<section class="collection"><header class="collection-head"><h2>${escapeHtml(c.title || c.data?.name || '')}</h2><div class="meta">${escapeHtml(c.description || c.data?.inspiration || '')}</div>`);
       if (palette) {
         html.push(`<div class="section"><div class="palette">` + palette.colors.slice(0,18).map(col=>`<span class="sw" style="background:${col}"></span>`).join('') + `</div></div>`);
       }
       if (fabrics.length>0) {
-        html.push(`<div class="section">`+ fabrics.map(f=> `<span class="chip">${f!.name}</span>`).join(' ') + `</div>`);
+        html.push(`<div class="section">`+ fabrics.map(f=> `<span class="chip">${escapeHtml(f!.name)}</span>`).join(' ') + `</div>`);
       }
       // Notes section
       const notes = listNotesByCollection(c.id);
@@ -469,14 +492,11 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
           notes.slice(0, 8).map(n => `<div style="font-size:12px;margin:4px 0;"><strong>${(n.title||'Untitled').toString().replace(/</g,'&lt;')}</strong><div style="white-space:pre-wrap;">${(n.body||'').toString().replace(/</g,'&lt;')}</div></div>`).join('') +
         `</div>`);
       }
-      html.push(`</div>`);
+      html.push(`</header>`);
       if (includeImages && images.length>0) {
-        const perPage = 4;
-        for (let i=0;i<images.length;i+=perPage) {
-          const chunk = images.slice(i,i+perPage);
-          html.push(`<div class="page"><div class="grid">`+ chunk.map((img, idx)=> `<div style="position:relative"><img class="img" src="${img.src}"/>${wmIds ? `<div style="position:absolute; right:4px; bottom:22px; background:rgba(0,0,0,.5); color:#fff; font-size:9pt; padding:2px 6px; border-radius:6px">${(img.id||'')}</div>`: ''}<div class="caption">${renderCaption(img, i+idx, c.title || c.data?.name || '')}</div></div>`).join('') + `</div></div>`);
-        }
+        html.push(`<div class="looks">`+ images.map((img,index)=> `<article class="look" style="position:relative"><img class="img" src="${img.src}"/><div class="caption">${renderCaption(img, index, c.title || c.data?.name || '')}</div></article>`).join('') + `</div>`);
       }
+      html.push(`</section>`);
     });
     html.push(`</body></html>`);
     win.document.open();
@@ -698,8 +718,8 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
                     </div>
                     <div className="space-y-1 pt-2">
                       <div className="font-medium">Caption Template</div>
-                      <div className="text-xs text-muted-foreground">Use tokens: {'{index} {caption} {collection} {portfolio}'}</div>
-                      <input className="w-full border rounded px-2 py-1 text-sm" value={captionTemplate} onChange={(e)=> setCaptionTemplate(e.target.value)} />
+                      <div className="text-xs text-muted-foreground">Use tokens: {'{index} {caption} {description} {price} {collection} {portfolio}'}</div>
+                      <Textarea rows={2} className="w-full text-sm" value={captionTemplate} onChange={(e)=> setCaptionTemplate(e.target.value)} />
                     </div>
                     <div className="space-y-1 pt-2">
                       <div className="font-medium">Workspace logo</div>

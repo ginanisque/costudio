@@ -26,6 +26,7 @@ import ZipExportButton from '@/components/ZipExportButton';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { generateCollectionCopy, generateDesignerProfile } from '@/utils/api';
 import { saveCollectionPersisted, saveDesignerPersisted, computeCollectionId, computeDesignerId, listDesigners, listCollections, listPalettes, listFabrics, savePalette, saveFabric, updateCollection, computePaletteId, computeFabricId, nextPieceSeq, computePieceId, savePiece, savePiecePersisted, listPiecesByCollection, updatePiece, addToInbox, addMessage, setPeerSeen, setTyping } from '@/utils/storage';
+import { calculateProductCosting, formatProductMoney, type ProductCosting } from '@/utils/productCosting';
 import type { ImageItem } from '@/types';
 import { broadcast, getCurrentCollab } from '@/utils/collab';
 import { downloadCollectionZip } from '@/utils/zip';
@@ -70,6 +71,7 @@ interface GeneratedImage {
   imageUrl: string;
   selected: boolean;
   improving?: boolean;
+  costing?: ProductCosting;
 }
 
 // --- Client-side enhancement for title/description when server copy is missing or too similar ---
@@ -194,10 +196,11 @@ const Index = () => {
       setImages(listPiecesByCollection(selected.id).map(piece => ({
         id: piece.id,
         prompt: piece.prompt,
-        title: `Look ${piece.seq}`,
+        title: piece.title || `Look ${piece.seq}`,
         description: piece.prompt,
         imageUrl: piece.imageUrl || '',
         selected: false,
+        costing: piece.costing,
       })).filter(piece => Boolean(piece.imageUrl)));
       localStorage.setItem('fashionAI.currentCollectionId', selected.id);
     } catch { /* the user can still start a new collection */ }
@@ -347,10 +350,10 @@ const Index = () => {
           const collSlug = collection ? (collection.name || '') : (generatedTitle || 'collection');
           const pieceId = item.id;
           try {
-            savePiece({ id: pieceId, seq, collectionId, prompt: item.description, imageUrl: item.imageUrl, createdAt: new Date().toISOString() });
+            savePiece({ id: pieceId, seq, collectionId, prompt: item.description, title:item.title, imageUrl: item.imageUrl, createdAt: new Date().toISOString() });
           } catch { /* ignore */ }
         } else if (existing.improving !== item.improving || existing.title !== item.title || existing.description !== item.description) {
-          try { updatePiece(item.id, { prompt: item.description }); } catch { /* ignore */ }
+          try { updatePiece(item.id, { prompt: item.description, title:item.title }); } catch { /* ignore */ }
         }
         return {
           id: item.id,
@@ -360,6 +363,7 @@ const Index = () => {
           imageUrl: item.imageUrl,
           selected: existing?.selected ?? false,
           improving: item.improving,
+          costing: existing?.costing,
         };
       });
     });
@@ -830,6 +834,7 @@ const Index = () => {
             </div>
             <ImageGallery 
               images={images}
+              currencySymbol={account?.businessDefaults.currencySymbol || '$'}
               onImageSelect={handleImageSelect}
               onDownloadSelected={handleDownloadSelected}
               onUpdateImage={(id, update) => {
@@ -838,7 +843,7 @@ const Index = () => {
                   const next = { ...img, ...update } as GeneratedImage;
                   // Keep description and prompt in sync
                   if (update.description !== undefined) next.prompt = update.description;
-                  try { updatePiece(id, { prompt: next.prompt }); } catch { /* ignore */ }
+                  try { updatePiece(id, { prompt: next.prompt, title: next.title, costing: next.costing }); } catch { /* ignore */ }
                   return next;
                 }));
               }}
@@ -866,7 +871,15 @@ const Index = () => {
               <Button variant="outline" onClick={()=> setActiveTab('social')}>Next: Social</Button>
             </div>
             <PortfolioExport 
-              images={images.filter(i=> !!i.imageUrl).map((i, index)=> ({ src: i.imageUrl, caption: i.title || `Look ${index + 1}`, id: i.id }))}
+              images={images.filter(i=> !!i.imageUrl).map((i, index)=> ({
+                src: i.imageUrl,
+                caption: i.title || `Look ${index + 1}`,
+                description: i.description || i.prompt,
+                price: i.costing?.showPrice && calculateProductCosting(i.costing).unitPrice > 0
+                  ? formatProductMoney(calculateProductCosting(i.costing).unitPrice, account?.businessDefaults.currencySymbol || '$')
+                  : '',
+                id: i.id,
+              }))}
               currentCollectionId={collectionId}
               designer={{ 
                 name: designerProfile?.name, 
