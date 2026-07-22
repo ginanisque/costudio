@@ -23,11 +23,27 @@ const escapeHtml = (value?: string) => String(value || '')
 
 const publicLookDescription = (value?: string) => {
   const cleaned = String(value || '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^\s*(?:prompt|image prompt|look\s*\d+)\s*[:=-]\s*/i, '')
+    .replace(/\b(?:id|image_id|model_id|reference_id|seed)\s*[:=#]\s*[a-z0-9_-]+/gi, ' ')
+    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi, ' ')
     .replace(/^(?:full[- ]length\s+)?(?:(?:high[- ]fashion|commercial|editorial)\s+)*(?:fashion\s+)?(?:portrait|image|campaign image|photograph)\s+of\s+[^,.]+?\s+(?:wearing|in)\s+/i, '')
+    .replace(/\b(?:modelled by|modeled by|featuring)\s+[A-Z][\w'-]+(?:\s+[A-Z][\w'-]+){1,3}/g, ' ')
     .replace(/\b(?:use|using|preserve|match)\b[^.]{0,180}\b(?:reference image|identity|model reference)\b[^.]*\.?/gi, '')
+    .replace(/,?\s*(?:photographed|shot|posed)\s+(?:in|on|against|with)\b[^.]*\.?/gi, '.')
+    .replace(/\b(?:studio lighting|clean backdrop|editorial lighting|camera angle|photorealistic rendering|high detail)\b[^.]*\.?/gi, '')
+    .replace(/[{}\[\]`]/g, ' ')
+    .replace(/\s+([,.;:])/g, '$1')
     .replace(/\s+/g, ' ')
     .trim();
   return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : '';
+};
+
+const comparableText = (value?: string) => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const samePublicText = (left?: string, right?: string) => Boolean(comparableText(left)) && comparableText(left) === comparableText(right);
+const compactCaption = (template: string, context: Record<string, string>) => {
+  if (samePublicText(context.caption, context.description)) context.description = '';
+  return escapeHtml(template.replace(/\{(\w+)\}/g, (_, key) => context[key] ?? '').replace(/\n{3,}/g, '\n\n').trim());
 };
 
 type DesignerInfo = { name?: string; role?: string; bio?: string; address?: string; website?: string; email?: string; phone?: string; instagram?: string; twitter?: string; tiktok?: string; logo?: string };
@@ -322,11 +338,15 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
         collection: collectionTitle,
         portfolio: manifest.portfolio.title,
       };
-      return escapeHtml(captionTemplate.replace(/\{(\w+)\}/g, (_, k) => ctx[k] ?? ''));
+      return compactCaption(captionTemplate, ctx);
     };
     const htmlParts: string[] = [`<html><head><meta charset="utf-8"/><title>${manifest.portfolio.title}</title><style>${css}</style></head><body>`];
     htmlParts.push(`<header class="intro"><h1>${escapeHtml(manifest.portfolio.title)}</h1><div class="meta">${escapeHtml(manifest.portfolio.description)}</div>${brandLogo ? `<img class="logo" src="${brandLogo}"/>` : ''}</header>`);
     selectedCollections.forEach((c) => {
+      const collectionTitle = c.title || c.data?.name || '';
+      const collectionDescription = c.description || c.data?.inspiration || '';
+      const duplicateTitle = selectedCollections.length === 1 && samePublicText(collectionTitle, manifest.portfolio.title);
+      const duplicateDescription = selectedCollections.length === 1 && samePublicText(collectionDescription, manifest.portfolio.description);
       const pal = c.paletteId ? palettes.find(p=>p.id===c.paletteId) : undefined;
       const fabs = (c.fabricIds||[]).map(fid=> fabrics.find(f=> f?.id===fid)).filter((f): f is NonNullable<typeof f> => !!f);
       const layout = layoutByCollection[c.id] || 'grid';
@@ -334,7 +354,7 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
         const hero = images[0];
         htmlParts.push(`<div class="hero"><img class="img" src="${hero.src}"/><div class="hero-title">${escapeHtml(c.title || c.data?.name || '')}</div></div>`);
       }
-      htmlParts.push(`<section class="collection"><header class="collection-head"><h2>${escapeHtml(c.title || c.data?.name || '')}</h2><div class="meta">${escapeHtml(c.description || c.data?.inspiration || '')}</div>`);
+      htmlParts.push(`<section class="collection"><header class="collection-head">${duplicateTitle ? '' : `<h2>${escapeHtml(collectionTitle)}</h2>`}${duplicateDescription ? '' : `<div class="meta">${escapeHtml(collectionDescription)}</div>`}`);
       if (pal) htmlParts.push(`<div class="section"><div class="palette">${pal.colors.slice(0,18).map(col=>`<span class="sw" style="background:${col}"></span>`).join('')}</div></div>`);
       if (fabs.length>0) htmlParts.push(`<div class="section">${fabs.map(f=>`<span class="chip">${escapeHtml(f.name)}</span>`).join(' ')}</div>`);
       htmlParts.push(`</header>`);
@@ -464,9 +484,13 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
         portfolio: title,
         id: img.id || '',
       };
-      return escapeHtml(captionTemplate.replace(/\{(\w+)\}/g, (_, k) => ctx[k] ?? ''));
+      return compactCaption(captionTemplate, ctx);
     };
     selectedCollections.forEach((c) => {
+      const collectionTitle = c.title || c.data?.name || '';
+      const collectionDescription = c.description || c.data?.inspiration || '';
+      const duplicateTitle = selectedCollections.length === 1 && samePublicText(collectionTitle, title);
+      const duplicateDescription = selectedCollections.length === 1 && samePublicText(collectionDescription, portfolioData.description);
       const palette = c.paletteId ? pal.find(p=>p.id===c.paletteId) : undefined;
       const fabrics = (c.fabricIds||[]).map(fid=> fabs.find(f=> f.id===fid)).filter(Boolean);
       const layout = layoutByCollection[c.id] || 'grid';
@@ -478,7 +502,7 @@ export const PortfolioExport: React.FC<{ images?: ExportImage[]; designer?: Desi
           `<div class="hero-title">${escapeHtml(c.title || c.data?.name || '')}</div>`+
           `</div>`);
       }
-      html.push(`<section class="collection"><header class="collection-head"><h2>${escapeHtml(c.title || c.data?.name || '')}</h2><div class="meta">${escapeHtml(c.description || c.data?.inspiration || '')}</div>`);
+      html.push(`<section class="collection"><header class="collection-head">${duplicateTitle ? '' : `<h2>${escapeHtml(collectionTitle)}</h2>`}${duplicateDescription ? '' : `<div class="meta">${escapeHtml(collectionDescription)}</div>`}`);
       if (palette) {
         html.push(`<div class="section"><div class="palette">` + palette.colors.slice(0,18).map(col=>`<span class="sw" style="background:${col}"></span>`).join('') + `</div></div>`);
       }
